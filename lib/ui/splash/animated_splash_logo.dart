@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AnimatedSplashLogo extends StatefulWidget {
-  const AnimatedSplashLogo({super.key, this.size = 150});
+  const AnimatedSplashLogo({
+    super.key,
+    this.size = 150,
+    this.color = Colors.white,
+  });
 
   final double size;
+  final Color color;
 
   @override
   State<AnimatedSplashLogo> createState() => _AnimatedSplashLogoState();
@@ -58,15 +63,17 @@ class _AnimatedSplashLogoState extends State<AnimatedSplashLogo>
 
   @override
   Widget build(BuildContext context) {
+    final dotColor =
+        widget.color == Colors.white ? Colors.black : Colors.white;
+
     return CustomPaint(
       size: Size(widget.size, widget.size),
-      painter: _ChatBubblePainter(),
+      painter: _ChatBubblePainter(color: widget.color),
       child: SizedBox(
         width: widget.size,
         height: widget.size,
         child: Center(
           child: Padding(
-            // nudge dots up slightly to sit inside the bubble body
             padding: EdgeInsets.only(bottom: widget.size * 0.2),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -81,8 +88,8 @@ class _AnimatedSplashLogoState extends State<AnimatedSplashLogo>
                       child: Container(
                         width: dotSize,
                         height: dotSize,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
+                        decoration: BoxDecoration(
+                          color: dotColor,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -99,9 +106,13 @@ class _AnimatedSplashLogoState extends State<AnimatedSplashLogo>
 }
 
 class _ChatBubblePainter extends CustomPainter {
+  const _ChatBubblePainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white;
+    final paint = Paint()..color = color;
     final w = size.width;
     final h = size.height;
 
@@ -125,5 +136,5 @@ class _ChatBubblePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChatBubblePainter old) => old.color != color;
 }

@@ -29,7 +29,9 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 2500), () async {
       if (!mounted) return;
       final isLoggedIn = await context.read<SplashViewModel>().isLoggedIn();
-      if (mounted) isLoggedIn ? context.go('/login') : context.go('/login');
+      if (!mounted) return;
+      // TODO: '/home' route not yet implemented; replace when main screen exists
+      isLoggedIn ? context.go('/home') : context.go('/welcome');
     });
   }
 
@@ -58,7 +60,6 @@ class _SplashScreenState extends State<SplashScreen>
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'PlusJakartaSans',
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.1),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'app_theme.dart';
 import 'data/local/token_storage.dart';
 import 'data/repositories/auth_repository.dart';
+import 'ui/auth/auth_view_model.dart';
 import 'ui/splash/splash_view_model.dart';
 import 'router.dart';
 
@@ -31,8 +33,17 @@ class SChat extends StatelessWidget {
           create: (context) => SplashViewModel(context.read()),
           update: (_, authRepository, prev) => SplashViewModel(authRepository),
         ),
+        ChangeNotifierProxyProvider<AuthRepository, AuthViewModel>(
+          create: (context) => AuthViewModel(context.read()),
+          update: (_, authRepository, prev) =>
+              prev ?? AuthViewModel(authRepository),
+        ),
       ],
-      child: MaterialApp.router(title: 'SChat', routerConfig: appRouter),
+      child: MaterialApp.router(
+        title: 'SChat',
+        theme: AppTheme.lightTheme,
+        routerConfig: appRouter,
+      ),
     );
   }
 }
