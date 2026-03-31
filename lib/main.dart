@@ -4,9 +4,6 @@ import 'app_theme.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
 import 'data/repositories/auth_repository.dart';
-import 'ui/auth/login_view_model.dart';
-import 'ui/auth/register_view_model.dart';
-import 'ui/auth/otp_view_model.dart';
 import 'ui/splash/splash_view_model.dart';
 import 'router.dart';
 
@@ -39,21 +36,6 @@ class SChat extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthRepository, SplashViewModel>(
           create: (context) => SplashViewModel(context.read()),
           update: (_, authRepository, prev) => SplashViewModel(authRepository),
-        ),
-        ChangeNotifierProxyProvider<AuthRepository, LoginViewModel>(
-          create: (context) => LoginViewModel(context.read()),
-          update: (_, authRepository, prev) =>
-              prev ?? LoginViewModel(authRepository),
-        ),
-        ChangeNotifierProxyProvider<AuthRepository, RegisterViewModel>(
-          create: (context) => RegisterViewModel(context.read()),
-          update: (_, authRepository, prev) =>
-              prev ?? RegisterViewModel(authRepository),
-        ),
-        ChangeNotifierProxyProvider<AuthRepository, OtpViewModel>(
-          create: (context) => OtpViewModel(context.read()),
-          update: (_, authRepository, prev) =>
-              prev ?? OtpViewModel(authRepository),
         ),
       ],
       child: MaterialApp.router(

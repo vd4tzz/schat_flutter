@@ -23,21 +23,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RegisterViewModel>().setOnRegistrationSuccess(_navigateToOtp);
-    });
+    context.read<RegisterViewModel>().addListener(_onViewModelChanged);
   }
 
-  void _navigateToOtp() {
-    if (!mounted) return;
+  void _onViewModelChanged() {
     final vm = context.read<RegisterViewModel>();
-    final email = _emailController.text.trim();
-    final expireSeconds = vm.otpExpiresIn;
-    context.go('/verify?email=$email${expireSeconds != null ? '&expire=$expireSeconds' : ''}');
+    if (vm.otpExpiresIn != null) {
+      final email = _emailController.text.trim();
+      context.go('/verify?email=$email&expire=${vm.otpExpiresIn}');
+    }
   }
 
   @override
   void dispose() {
+    context.read<RegisterViewModel>().removeListener(_onViewModelChanged);
     _fullNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();

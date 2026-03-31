@@ -3,7 +3,6 @@ import '../../data/repositories/auth_repository.dart';
 
 class RegisterViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
-  VoidCallback? _onRegistrationSuccess;
 
   RegisterViewModel(this._authRepository);
 
@@ -15,10 +14,6 @@ class RegisterViewModel extends ChangeNotifier {
 
   int? _otpExpiresIn;
   int? get otpExpiresIn => _otpExpiresIn;
-
-  void setOnRegistrationSuccess(VoidCallback callback) {
-    _onRegistrationSuccess = callback;
-  }
 
   Future<void> register({
     required String fullName,
@@ -42,7 +37,6 @@ class RegisterViewModel extends ChangeNotifier {
         _otpExpiresIn = expireSeconds;
         _isLoading = false;
         notifyListeners();
-        _onRegistrationSuccess?.call();
       },
       failure: (message, code) {
         _errorMessage = message;

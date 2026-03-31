@@ -3,19 +3,17 @@ import '../../data/repositories/auth_repository.dart';
 
 class OtpViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
-  VoidCallback? _onVerifySuccess;
 
   OtpViewModel(this._authRepository);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isVerified = false;
+  bool get isVerified => _isVerified;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
-
-  void setOnVerifySuccess(VoidCallback callback) {
-    _onVerifySuccess = callback;
-  }
 
   Future<void> verifyOtp({
     required String email,
@@ -30,8 +28,8 @@ class OtpViewModel extends ChangeNotifier {
     result.when(
       success: (_) {
         _isLoading = false;
+        _isVerified = true;
         notifyListeners();
-        _onVerifySuccess?.call();
       },
       failure: (message, code) {
         _errorMessage = message;

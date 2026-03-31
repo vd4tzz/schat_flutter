@@ -55,15 +55,16 @@ class _OtpScreenState extends State<OtpScreen> {
         return KeyEventResult.ignored;
       };
     }
+    context.read<OtpViewModel>().addListener(_onViewModelChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OtpViewModel>().setOnVerifySuccess(_navigateToHome);
       _focusNodes[0].requestFocus();
     });
   }
 
-  void _navigateToHome() {
-    if (!mounted) return;
-    context.go('/home'); // TODO: navigate to actual home route
+  void _onViewModelChanged() {
+    if (context.read<OtpViewModel>().isVerified) {
+      context.go('/home'); // TODO: replace with actual home route
+    }
   }
 
   void _startTimer() {
@@ -92,6 +93,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
+    context.read<OtpViewModel>().removeListener(_onViewModelChanged);
     _timer?.cancel();
     for (final c in _controllers) {
       c.dispose();

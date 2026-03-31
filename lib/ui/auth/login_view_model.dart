@@ -3,19 +3,17 @@ import '../../data/repositories/auth_repository.dart';
 
 class LoginViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
-  VoidCallback? _onLoginSuccess;
 
   LoginViewModel(this._authRepository);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isSuccess = false;
+  bool get isSuccess => _isSuccess;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
-
-  void setOnLoginSuccess(VoidCallback callback) {
-    _onLoginSuccess = callback;
-  }
 
   Future<void> login({
     required String identifier,
@@ -31,10 +29,10 @@ class LoginViewModel extends ChangeNotifier {
     );
 
     result.when(
-      success: (data) {
+      success: (_) {
         _isLoading = false;
+        _isSuccess = true;
         notifyListeners();
-        _onLoginSuccess?.call();
       },
       failure: (message, code) {
         _errorMessage = message;
@@ -47,7 +45,8 @@ class LoginViewModel extends ChangeNotifier {
   Future<void> logout() async {
     final result = await _authRepository.logout();
     result.when(
-      success: (data) {
+      success: (_) {
+        _isSuccess = false;
         _errorMessage = null;
       },
       failure: (message, code) {},

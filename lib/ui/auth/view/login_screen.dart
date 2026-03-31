@@ -19,17 +19,18 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LoginViewModel>().setOnLoginSuccess(_navigateToHome);
-    });
+    context.read<LoginViewModel>().addListener(_onViewModelChanged);
   }
 
-  void _navigateToHome() {
-    // TODO: navigate to home when /home route exists
+  void _onViewModelChanged() {
+    if (context.read<LoginViewModel>().isSuccess) {
+      context.go('/home'); // TODO: replace with actual home route
+    }
   }
 
   @override
   void dispose() {
+    context.read<LoginViewModel>().removeListener(_onViewModelChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
