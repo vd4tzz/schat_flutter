@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../auth_view_model.dart';
+import '../register_view_model.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,7 +12,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -23,32 +24,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthViewModel>().addListener(_onAuthStateChanged);
+      context.read<RegisterViewModel>().setOnRegistrationSuccess(_navigateToOtp);
     });
   }
 
-  void _onAuthStateChanged() {
+  void _navigateToOtp() {
     if (!mounted) return;
-    final vm = context.read<AuthViewModel>();
-    if (vm.state == AuthState.idle) {
-      // TODO: navigate to home when /home route exists
-    }
+    final vm = context.read<RegisterViewModel>();
+    final email = _emailController.text.trim();
+    final expireSeconds = vm.otpExpiresIn;
+    context.go('/verify?email=$email${expireSeconds != null ? '&expire=$expireSeconds' : ''}');
   }
 
   @override
   void dispose() {
-    context.read<AuthViewModel>().removeListener(_onAuthStateChanged);
-    _nameController.dispose();
+    _fullNameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  void _clearErrorOnEdit(String _) {
+    final vm = context.read<RegisterViewModel>();
+    if (vm.errorMessage != null) {
+      vm.clearError();
+    }
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthViewModel>().register(
-      name: _nameController.text.trim(),
+    context.read<RegisterViewModel>().register(
+      fullName: _fullNameController.text.trim(),
+      username: _usernameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
@@ -56,8 +65,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AuthViewModel>();
-    final isLoading = vm.state == AuthState.loading;
+    final vm = context.watch<RegisterViewModel>();
+    final isLoading = vm.isLoading;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -116,16 +125,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               const SizedBox(height: 24),
                               TextFormField(
-                                controller: _nameController,
+                                controller: _fullNameController,
                                 keyboardType: TextInputType.name,
                                 textInputAction: TextInputAction.next,
                                 textCapitalization: TextCapitalization.words,
+                                onChanged: _clearErrorOnEdit,
                                 decoration: const InputDecoration(
                                   hintText: 'Full name',
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
-                                    return 'Please enter your name';
+                                    return 'Please enter your full name';
+                                  }
+                                  if (v.trim().length < 2) {
+                                    return 'Full name must be at least 2 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _usernameController,
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.next,
+                                onChanged: _clearErrorOnEdit,
+                                decoration: const InputDecoration(
+                                  hintText: 'Username',
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Please enter a username';
+                                  }
+                                  if (v.trim().length < 3) {
+                                    return 'Username must be at least 3 characters';
                                   }
                                   return null;
                                 },
@@ -135,6 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
+                                onChanged: _clearErrorOnEdit,
                                 decoration: const InputDecoration(
                                   hintText: 'Email',
                                 ),
@@ -153,6 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 textInputAction: TextInputAction.next,
+                                onChanged: _clearErrorOnEdit,
                                 decoration: InputDecoration(
                                   hintText: 'Password',
                                   suffixIcon: IconButton(
@@ -182,6 +216,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 controller: _confirmPasswordController,
                                 obscureText: _obscureConfirm,
                                 textInputAction: TextInputAction.done,
+                                onChanged: _clearErrorOnEdit,
                                 onFieldSubmitted: (_) => _submit(),
                                 decoration: InputDecoration(
                                   hintText: 'Confirm password',
@@ -206,8 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   return null;
                                 },
                               ),
-                              if (vm.state == AuthState.error &&
-                                  vm.errorMessage != null) ...[
+                              if (vm.errorMessage != null) ...[
                                 const SizedBox(height: 16),
                                 _ErrorBanner(message: vm.errorMessage!),
                               ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../auth_view_model.dart';
+import '../login_view_model.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,38 +20,40 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthViewModel>().addListener(_onAuthStateChanged);
+      context.read<LoginViewModel>().setOnLoginSuccess(_navigateToHome);
     });
   }
 
-  void _onAuthStateChanged() {
-    if (!mounted) return;
-    final vm = context.read<AuthViewModel>();
-    if (vm.state == AuthState.idle) {
-      // TODO: navigate to home when /home route exists
-    }
+  void _navigateToHome() {
+    // TODO: navigate to home when /home route exists
   }
 
   @override
   void dispose() {
-    context.read<AuthViewModel>().removeListener(_onAuthStateChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  void _clearErrorOnEdit(String _) {
+    final vm = context.read<LoginViewModel>();
+    if (vm.errorMessage != null) {
+      vm.clearError();
+    }
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthViewModel>().login(
-      email: _emailController.text.trim(),
+    context.read<LoginViewModel>().login(
+      identifier: _emailController.text.trim(),
       password: _passwordController.text,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AuthViewModel>();
-    final isLoading = vm.state == AuthState.loading;
+    final vm = context.watch<LoginViewModel>();
+    final isLoading = vm.isLoading;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -107,15 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
+                                onChanged: _clearErrorOnEdit,
                                 decoration: const InputDecoration(
-                                  hintText: 'Email',
+                                  hintText: 'Username/Email',
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
                                     return 'Please enter your email';
-                                  }
-                                  if (!v.contains('@')) {
-                                    return 'Invalid email address';
                                   }
                                   return null;
                                 },
@@ -125,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 textInputAction: TextInputAction.done,
+                                onChanged: _clearErrorOnEdit,
                                 onFieldSubmitted: (_) => _submit(),
                                 decoration: InputDecoration(
                                   hintText: 'Password',
@@ -150,8 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   return null;
                                 },
                               ),
-                              if (vm.state == AuthState.error &&
-                                  vm.errorMessage != null) ...[
+                              if (vm.errorMessage != null) ...[
                                 const SizedBox(height: 16),
                                 _ErrorBanner(message: vm.errorMessage!),
                               ],

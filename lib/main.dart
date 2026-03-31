@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_theme.dart';
 import 'data/local/token_storage.dart';
+import 'data/remote/api_client.dart';
 import 'data/repositories/auth_repository.dart';
-import 'ui/auth/auth_view_model.dart';
+import 'ui/auth/login_view_model.dart';
+import 'ui/auth/register_view_model.dart';
+import 'ui/auth/otp_view_model.dart';
 import 'ui/splash/splash_view_model.dart';
 import 'router.dart';
 
@@ -21,11 +24,15 @@ class SChat extends StatelessWidget {
         // 1. Local
         Provider<TokenStorage>.value(value: TokenStorage.instance),
 
-        // 2. Remote (ApiClient) — TODO
+        // 2. Remote
+        ProxyProvider<TokenStorage, ApiClient>(
+          update: (_, tokenStorage, _) => ApiClient(tokenStorage),
+        ),
 
         // 3. Repositories
-        ProxyProvider<TokenStorage, AuthRepository>(
-          update: (_, tokenStorage, _) => AuthRepository(tokenStorage),
+        ProxyProvider2<TokenStorage, ApiClient, AuthRepository>(
+          update: (_, tokenStorage, apiClient, _) =>
+              AuthRepository(tokenStorage, apiClient),
         ),
 
         // 4. ViewModels
@@ -33,10 +40,20 @@ class SChat extends StatelessWidget {
           create: (context) => SplashViewModel(context.read()),
           update: (_, authRepository, prev) => SplashViewModel(authRepository),
         ),
-        ChangeNotifierProxyProvider<AuthRepository, AuthViewModel>(
-          create: (context) => AuthViewModel(context.read()),
+        ChangeNotifierProxyProvider<AuthRepository, LoginViewModel>(
+          create: (context) => LoginViewModel(context.read()),
           update: (_, authRepository, prev) =>
-              prev ?? AuthViewModel(authRepository),
+              prev ?? LoginViewModel(authRepository),
+        ),
+        ChangeNotifierProxyProvider<AuthRepository, RegisterViewModel>(
+          create: (context) => RegisterViewModel(context.read()),
+          update: (_, authRepository, prev) =>
+              prev ?? RegisterViewModel(authRepository),
+        ),
+        ChangeNotifierProxyProvider<AuthRepository, OtpViewModel>(
+          create: (context) => OtpViewModel(context.read()),
+          update: (_, authRepository, prev) =>
+              prev ?? OtpViewModel(authRepository),
         ),
       ],
       child: MaterialApp.router(

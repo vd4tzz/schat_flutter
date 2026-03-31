@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../otp_view_model.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -52,9 +55,15 @@ class _OtpScreenState extends State<OtpScreen> {
         return KeyEventResult.ignored;
       };
     }
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusNodes[0].requestFocus(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OtpViewModel>().setOnVerifySuccess(_navigateToHome);
+      _focusNodes[0].requestFocus();
+    });
+  }
+
+  void _navigateToHome() {
+    if (!mounted) return;
+    context.go('/home'); // TODO: navigate to actual home route
   }
 
   void _startTimer() {
@@ -78,7 +87,7 @@ class _OtpScreenState extends State<OtpScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _focusNodes[0].requestFocus(),
     );
-    // TODO: call resend OTP API
+    context.read<OtpViewModel>().resendOtp(email: widget.email);
   }
 
   @override
@@ -94,6 +103,11 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _onChanged(int index, String value) {
+    final vm = context.read<OtpViewModel>();
+    if (vm.errorMessage != null) {
+      vm.clearError();
+    }
+
     // Handle paste: distribute digits across boxes
     if (value.length > 1) {
       final digits = value.replaceAll(RegExp(r'\D'), '');
@@ -115,13 +129,17 @@ class _OtpScreenState extends State<OtpScreen> {
   void _submit() {
     if (!_isComplete || _isExpired) return;
     final code = _controllers.map((c) => c.text).join();
-    // TODO: verify OTP via ViewModel
-    debugPrint('OTP submitted: $code');
+    context.read<OtpViewModel>().verifyOtp(
+          email: widget.email,
+          otp: code,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final vm = context.watch<OtpViewModel>();
+    final isLoading = vm.isLoading;
 
     return Scaffold(
       body: SafeArea(
@@ -183,7 +201,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   controller: _controllers[i],
                                   focusNode: _focusNodes[i],
                                   onChanged: (v) => _onChanged(i, v),
-                                  enabled: !_isExpired,
+                                  enabled: !_isExpired && !isLoading,
                                 );
                               }),
                             ),
@@ -227,14 +245,30 @@ class _OtpScreenState extends State<OtpScreen> {
                                     ),
                             ),
 
+                            // Error banner
+                            if (vm.errorMessage != null) ...[
+                              const SizedBox(height: 16),
+                              _ErrorBanner(message: vm.errorMessage!),
+                            ],
+
                             const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child: ElevatedButton(
-                                onPressed:
-                                    (_isComplete && !_isExpired) ? _submit : null,
-                                child: const Text('Verify'),
+                                onPressed: (_isComplete && !_isExpired && !isLoading)
+                                    ? _submit
+                                    : null,
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text('Verify'),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -266,6 +300,36 @@ class _OtpScreenState extends State<OtpScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.redAccent.shade100),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
