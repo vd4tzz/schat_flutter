@@ -1,20 +1,41 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/user_repository.dart';
 import 'ui/auth/login_view_model.dart';
 import 'ui/auth/register_view_model.dart';
 import 'ui/auth/otp_view_model.dart';
+import 'ui/home/profile/profile_view_model.dart';
 import 'ui/splash/splash_screen.dart';
 import 'ui/auth/view/welcome_screen.dart';
 import 'ui/auth/view/login_screen.dart';
 import 'ui/auth/view/register_screen.dart';
 import 'ui/auth/view/otp_screen.dart';
+import 'ui/home/home_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash',  builder: (_, _) => const SplashScreen()),
     GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+    GoRoute(
+      path: '/home',
+      builder: (context, _) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (ctx) => ProfileViewModel(ctx.read<UserRepository>()),
+          ),
+          // Add more ViewModels here as needed
+          // ChangeNotifierProvider(
+          //   create: (ctx) => ConversationsViewModel(ctx.read<ConversationsRepository>()),
+          // ),
+          // ChangeNotifierProvider(
+          //   create: (ctx) => NotificationsViewModel(ctx.read<NotificationsRepository>()),
+          // ),
+        ],
+        child: const HomeScreen(),
+      ),
+    ),
     GoRoute(
       path: '/login',
       builder: (context, _) => ChangeNotifierProvider(
