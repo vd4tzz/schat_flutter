@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/services/image_service.dart';
+import '../../../../core/utils/image_utils.dart';
 import '../profile_view_model.dart';
 import 'user_profile_detail_screen.dart';
 
@@ -282,12 +282,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ProfileViewModel viewModel, {
     required bool isAvatar,
   }) async {
-    final pickedPath = await ImageService.pickImage();
+    final pickedPath = await ImageUtils.pickImage();
     if (pickedPath == null) return;
 
     if (!mounted) return;
 
-    final croppedPath = await ImageService.cropImage(
+    final croppedPath = await ImageUtils.cropImage(
       pickedPath,
       aspectRatio: isAvatar
           ? const CropAspectRatio(ratioX: 1, ratioY: 1)
