@@ -42,7 +42,7 @@ class User {
       bio: json['bio'] as String?,
       gender: json['gender'] as String?,
       dateOfBirth: json['dateOfBirth'] != null
-          ? DateTime.parse(json['dateOfBirth'] as String)
+          ? DateTime.parse(json['dateOfBirth'] as String).toUtc()
           : null,
       phoneNumber: json['phoneNumber'] as String?,
       avatarUrl: _fixUrl(json['avatarUrl'] as String?),

@@ -121,6 +121,38 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateProfile({
+    String? fullName,
+    String? bio,
+    String? gender,
+    DateTime? dateOfBirth,
+    String? phoneNumber,
+  }) async {
+    _isUploading = true;
+    _error = null;
+    notifyListeners();
+
+    final result = await _userRepository.updateProfile(
+      fullName: fullName,
+      bio: bio,
+      gender: gender,
+      dateOfBirth: dateOfBirth,
+      phoneNumber: phoneNumber,
+    );
+    result.when(
+      success: (user) {
+        _user = user;
+        _isUploading = false;
+        _error = null;
+      },
+      failure: (message, code) {
+        _isUploading = false;
+        _error = message;
+      },
+    );
+    notifyListeners();
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

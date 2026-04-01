@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/services/image_service.dart';
 import '../profile_view_model.dart';
+import 'user_profile_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -55,49 +56,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
 
             return Stack(
-            children: [
-              SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Background only
-                    _buildBackground(context, viewModel, user),
-                    // Avatar (clickable)
-                    _buildAvatar(context, viewModel, user),
-                    // Full Name & Username
-                    Transform.translate(
-                      offset: const Offset(0, -50),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            Text(
-                              user.fullName,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '@${user.username}',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.grey[600]),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+              children: [
+                SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Background only
+                      _buildBackground(context, viewModel, user),
+                      // Avatar (clickable)
+                      _buildAvatar(context, viewModel, user),
+                      // Full Name & Username
+                      Transform.translate(
+                        offset: const Offset(0, -50),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            children: [
+                              Text(
+                                user.fullName,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '@${user.username}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      Transform.translate(
+                        offset: const Offset(0, -30),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Material(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(12),
+                            child: ListTile(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              leading: const Icon(Icons.person_outline),
+                              title: const Text('My Profile'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ChangeNotifierProvider.value(
+                                          value: context
+                                              .read<ProfileViewModel>(),
+                                          child:
+                                              const UserProfileDetailScreen(),
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              // Loading overlay
-              if (viewModel.isUploading)
-                Container(
-                  color: Colors.black.withAlpha(100),
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-            ],
-          );
+                // Loading overlay
+                if (viewModel.isUploading)
+                  Container(
+                    color: Colors.black.withAlpha(100),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            );
           },
         ),
       ),
@@ -189,7 +224,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required bool isAvatar,
   }) {
     final user = viewModel.user;
-    final hasExisting = isAvatar ? user?.avatarUrl != null : user?.backgroundUrl != null;
+    final hasExisting = isAvatar
+        ? user?.avatarUrl != null
+        : user?.backgroundUrl != null;
 
     showModalBottomSheet(
       context: context,
@@ -220,7 +257,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () async {
                   Navigator.pop(context);
                   if (isAvatar) {
@@ -294,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CircularProgressIndicator(
                       value: loadingProgress.expectedTotalBytes != null
                           ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
+                                loadingProgress.expectedTotalBytes!
                           : null,
                     ),
                   );
