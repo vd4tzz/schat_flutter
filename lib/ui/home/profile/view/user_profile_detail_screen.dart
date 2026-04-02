@@ -120,8 +120,8 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                 children: [
                   _buildHeader(context, user),
                   const Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 19),
-                    child: const Divider(height: 0.5, thickness: 0.5),
+                    padding: EdgeInsets.symmetric(horizontal: 19),
+                    child: Divider(height: 0.5, thickness: 0.5),
                   ),
 
                   _buildField(
@@ -161,7 +161,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
               ),
               if (viewModel.isUploading)
                 Container(
-                  color: Colors.black.withAlpha(80),
+                  color: Theme.of(context).colorScheme.scrim.withAlpha(80),
                   child: const Center(child: CircularProgressIndicator()),
                 ),
             ],
@@ -178,12 +178,12 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
         children: [
           CircleAvatar(
             radius: 32,
-            backgroundColor: Colors.grey[200],
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             backgroundImage: user.avatarUrl != null
                 ? NetworkImage(user.avatarUrl!)
                 : null,
             child: user.avatarUrl == null
-                ? Icon(Icons.person, size: 32, color: Colors.grey[500])
+                ? Icon(Icons.person, size: 32, color: Theme.of(context).colorScheme.onSurfaceVariant)
                 : null,
           ),
           const SizedBox(width: 16),
@@ -201,7 +201,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                 '@${user.username}',
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -254,7 +254,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       Text(
                         label,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -306,7 +306,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       Text(
                         label,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -369,7 +369,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       child: Text(
                         displayValue ?? 'Select date',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: displayValue == null ? Colors.grey[500] : null,
+                          color: displayValue == null ? Theme.of(context).colorScheme.onSurfaceVariant : null,
                         ),
                       ),
                     ),
@@ -380,7 +380,7 @@ class _UserProfileDetailScreenState extends State<UserProfileDetailScreen> {
                       Text(
                         'Date of Birth',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 2),

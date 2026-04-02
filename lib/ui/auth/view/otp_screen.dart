@@ -181,12 +181,12 @@ class _OtpScreenState extends State<OtpScreen> {
                               TextSpan(
                                 text: 'Enter the 6-digit code sent to ',
                                 style: textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.grey),
+                                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 children: [
                                   TextSpan(
                                     text: widget.email,
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color: Colors.black,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),

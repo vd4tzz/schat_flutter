@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../data/models/friendship_info.dart';
 import '../../../../data/models/search_user_result.dart';
+import '../../../theme/app_colors.dart';
 import '../inbox_view_model.dart';
 import '../widgets/user_profile_bottom_sheet.dart';
 
@@ -69,6 +70,8 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   Widget _buildSearchResults(ThemeData theme) {
+    final colors = theme.colorScheme;
+
     return Consumer<InboxViewModel>(
       builder: (context, vm, _) {
         if (vm.isLoading) {
@@ -84,11 +87,11 @@ class _InboxScreenState extends State<InboxScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.search, size: 64, color: Colors.grey[400]),
+                Icon(Icons.search, size: 64, color: colors.outline),
                 const SizedBox(height: 16),
                 Text(
                   'Search by name or username',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: colors.onSurfaceVariant),
                 ),
               ],
             ),
@@ -99,7 +102,7 @@ class _InboxScreenState extends State<InboxScreen> {
           return Center(
             child: Text(
               'No users found',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: colors.onSurfaceVariant),
             ),
           );
         }
@@ -122,16 +125,17 @@ class _InboxScreenState extends State<InboxScreen> {
   ) {
     final user = item.user;
     final friendship = item.friendship;
+    final colors = theme.colorScheme;
 
     return ListTile(
       leading: CircleAvatar(
         radius: 24,
-        backgroundColor: Colors.grey[200],
+        backgroundColor: colors.surfaceContainerHighest,
         backgroundImage: user.avatarUrl != null
             ? NetworkImage(user.avatarUrl!)
             : null,
         child: user.avatarUrl == null
-            ? Icon(Icons.person, color: Colors.grey[500])
+            ? Icon(Icons.person, color: colors.onSurfaceVariant)
             : null,
       ),
       title: Text(
@@ -147,23 +151,26 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   Widget? _buildStatusBadge(ThemeData theme, FriendshipInfo friendship) {
+    final colors = theme.colorScheme;
+    final appColors = theme.extension<AppColors>()!;
+
     return switch (friendship.status) {
       FriendshipStatus.accepted => Chip(
         label: const Text('Friends'),
-        labelStyle: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
-        side: BorderSide(color: theme.colorScheme.primary),
+        labelStyle: TextStyle(fontSize: 12, color: colors.primary),
+        side: BorderSide(color: colors.primary),
         visualDensity: VisualDensity.compact,
       ),
       FriendshipStatus.pendingSent => Chip(
         label: const Text('Sent'),
-        labelStyle: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        side: BorderSide(color: Colors.grey[400]!),
+        labelStyle: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+        side: BorderSide(color: colors.outline),
         visualDensity: VisualDensity.compact,
       ),
       FriendshipStatus.pendingReceived => Chip(
         label: const Text('Pending'),
-        labelStyle: const TextStyle(fontSize: 12, color: Colors.orange),
-        side: const BorderSide(color: Colors.orange),
+        labelStyle: TextStyle(fontSize: 12, color: appColors.warning),
+        side: BorderSide(color: appColors.warning),
         visualDensity: VisualDensity.compact,
       ),
       _ => null,

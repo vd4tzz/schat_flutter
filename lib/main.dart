@@ -51,6 +51,7 @@ class SChat extends StatelessWidget {
       child: MaterialApp.router(
         title: 'SChat',
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
         routerConfig: appRouter,
       ),
     );

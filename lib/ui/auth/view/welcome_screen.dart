@@ -16,7 +16,7 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 3),
-              AnimatedSplashLogo(size: 100, color: Colors.black),
+              AnimatedSplashLogo(size: 100, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 24),
               Text(
                 'SChat',
@@ -27,7 +27,7 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Nhắn tin nhanh, kết nối dễ dàng',
-                style: textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                style: textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const Spacer(flex: 3),

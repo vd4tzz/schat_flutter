@@ -27,6 +27,7 @@ class _UserProfileSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final user = item.user;
 
     // Get latest friendship from ViewModel
@@ -48,7 +49,7 @@ class _UserProfileSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: colors.outlineVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -57,11 +58,12 @@ class _UserProfileSheet extends StatelessWidget {
           // Avatar
           CircleAvatar(
             radius: 52,
-            backgroundColor: Colors.grey[200],
+            backgroundColor: colors.surfaceContainerHighest,
             backgroundImage:
                 user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
             child: user.avatarUrl == null
-                ? Icon(Icons.person, size: 52, color: Colors.grey[500])
+                ? Icon(Icons.person,
+                    size: 52, color: colors.onSurfaceVariant)
                 : null,
           ),
           const SizedBox(height: 20),
@@ -80,7 +82,7 @@ class _UserProfileSheet extends StatelessWidget {
           Text(
             '@${user.username}',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[600],
+              color: colors.onSurfaceVariant,
             ),
           ),
 
@@ -131,6 +133,8 @@ class _UserProfileSheet extends StatelessWidget {
   }
 
   void _showFriendOptions(BuildContext context, FriendshipInfo friendship) {
+    final colors = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       builder: (dialogContext) => SimpleDialog(
@@ -144,11 +148,11 @@ class _UserProfileSheet extends StatelessWidget {
                     friendship.friendshipId!,
                   );
             },
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.person_remove, color: Colors.red, size: 20),
-                SizedBox(width: 12),
-                Text('Unfriend', style: TextStyle(color: Colors.red)),
+                Icon(Icons.person_remove, color: colors.error, size: 20),
+                const SizedBox(width: 12),
+                Text('Unfriend', style: TextStyle(color: colors.error)),
               ],
             ),
           ),

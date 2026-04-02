@@ -81,7 +81,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 '@${user.username}',
                                 style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.grey[600]),
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -128,7 +132,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Loading overlay
                 if (viewModel.isUploading)
                   Container(
-                    color: Colors.black.withAlpha(100),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .scrim
+                        .withAlpha(100),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
@@ -144,6 +151,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ProfileViewModel viewModel,
     dynamic user,
   ) {
+    final colors = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: () => _showImagePickerSheet(context, viewModel, isAvatar: false),
       child: Container(
@@ -154,8 +163,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.primary.withAlpha(30),
-              Theme.of(context).colorScheme.primary.withAlpha(10),
+              colors.primary.withAlpha(30),
+              colors.primary.withAlpha(10),
             ],
           ),
         ),
@@ -176,6 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     dynamic user,
   ) {
     const avatarSize = 120.0;
+    final colors = Theme.of(context).colorScheme;
 
     return Transform.translate(
       offset: const Offset(0, -60),
@@ -187,12 +197,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: Theme.of(context).colorScheme.surface,
+                color: colors.surface,
                 width: 5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withAlpha(100),
+                  color: colors.scrim.withAlpha(100),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -200,7 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: CircleAvatar(
               radius: avatarSize / 2,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: colors.surfaceContainerHighest,
               backgroundImage: user.avatarUrl != null
                   ? NetworkImage(user.avatarUrl!)
                   : null,
@@ -208,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? Icon(
                       Icons.person,
                       size: avatarSize / 2.5,
-                      color: Colors.grey[500],
+                      color: colors.onSurfaceVariant,
                     )
                   : null,
             ),
@@ -227,6 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final hasExisting = isAvatar
         ? user?.avatarUrl != null
         : user?.backgroundUrl != null;
+    final colors = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
       context: context,
@@ -256,10 +267,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text(
+                leading: Icon(Icons.delete_outline, color: colors.error),
+                title: Text(
                   'Delete',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: colors.error),
                 ),
                 onTap: () async {
                   Navigator.pop(context);
@@ -340,12 +351,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
                 errorBuilder: (context, error, stackTrace) {
-                  return Column(
+                  return const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error, color: Colors.red, size: 48),
-                      const SizedBox(height: 16),
-                      const Text(
+                      Icon(Icons.error, color: Colors.red, size: 48),
+                      SizedBox(height: 16),
+                      Text(
                         'Failed to load image',
                         style: TextStyle(color: Colors.white),
                       ),

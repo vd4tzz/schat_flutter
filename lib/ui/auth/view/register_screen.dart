@@ -119,7 +119,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Text(
                                 'Join SChat today',
                                 style: textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -251,11 +253,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: ElevatedButton(
                                   onPressed: isLoading ? null : _submit,
                                   child: isLoading
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           width: 20,
                                           height: 20,
                                           child: CircularProgressIndicator(
-                                            color: Colors.white,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
                                             strokeWidth: 2,
                                           ),
                                         )
@@ -288,14 +292,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             // ── DEV ─────────────────────────────────────
                             TextButton.icon(
-                              onPressed: () => context.go(
-                                '/verify?email=test@dev.com',
+                              onPressed: () =>
+                                  context.go('/verify?email=test@dev.com'),
+                              icon: const Icon(
+                                Icons.bug_report_outlined,
+                                size: 16,
                               ),
-                              icon: const Icon(Icons.bug_report_outlined,
-                                  size: 16),
                               label: const Text('Dev: Test OTP screen'),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.grey,
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 textStyle: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -324,18 +331,27 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Theme.of(context).colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.redAccent.shade100),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error.withAlpha(100),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+          Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.error,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
