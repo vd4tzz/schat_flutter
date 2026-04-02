@@ -4,6 +4,7 @@ import 'app_theme.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/friendship_repository.dart';
 import 'data/repositories/user_repository.dart';
 import 'ui/splash/splash_view_model.dart';
 import 'router.dart';
@@ -35,6 +36,10 @@ class SChat extends StatelessWidget {
 
         ProxyProvider<ApiClient, UserRepository>(
           update: (_, apiClient, _) => UserRepository(apiClient),
+        ),
+
+        ProxyProvider<ApiClient, FriendshipRepository>(
+          update: (_, apiClient, _) => FriendshipRepository(apiClient),
         ),
 
         // 4. ViewModels

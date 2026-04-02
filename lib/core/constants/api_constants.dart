@@ -26,4 +26,11 @@ abstract final class ApiConstants {
   static const login = '/auth/login';
   static const refresh = '/auth/refresh';
   static const logout = '/auth/logout';
+
+  // Users
+  static const searchUsers = '/users/search';
+
+  // Friendships
+  static const friendships = '/friendships';
+  static const friendRequests = '/friendships/requests';
 }

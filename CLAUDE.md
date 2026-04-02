@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 SChat - Real-time messaging app built with Flutter.
+Support english language first.
 
 ## Commands
 

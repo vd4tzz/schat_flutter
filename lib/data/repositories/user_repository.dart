@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
+import '../models/search_user_result.dart';
 import '../models/user.dart';
 import '../remote/api_client.dart';
 
@@ -8,6 +10,23 @@ class UserRepository {
   final ApiClient _apiClient;
 
   UserRepository(this._apiClient);
+
+  Future<Result<List<SearchUserResult>>> searchUsers(String query) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.searchUsers,
+        queryParameters: {'q': query, 'includeFriendship': true},
+      );
+      final list = (response.data as List)
+          .map((e) => SearchUserResult.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Result.success(list);
+    } on DioException catch (e) {
+      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+    } catch (e) {
+      return Result.failure(e.toString());
+    }
+  }
 
   Future<Result<User>> getProfile() async {
     try {
