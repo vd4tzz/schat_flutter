@@ -33,4 +33,10 @@ abstract final class ApiConstants {
   // Friendships
   static const friendships = '/friendships';
   static const friendRequests = '/friendships/requests';
+  static const incomingRequests = '/friendships/requests/incoming';
+
+  // Notifications
+  static const notifications = '/notifications';
+  static const notificationsUnreadCount = '/notifications/unread-count';
+  static const notificationsReadAll = '/notifications/read-all';
 }

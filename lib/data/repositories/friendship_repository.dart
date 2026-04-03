@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
+import '../models/friend_request.dart';
 import '../models/friendship_info.dart';
 import '../remote/api_client.dart';
 
@@ -21,6 +22,46 @@ class FriendshipRepository {
         status: FriendshipStatus.pendingSent,
         friendshipId: data['id'] as String,
       ));
+    } on DioException catch (e) {
+      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+    } catch (e) {
+      return Result.failure(e.toString());
+    }
+  }
+
+  Future<Result<List<FriendRequest>>> listIncomingRequests() async {
+    try {
+      final response = await _apiClient.dio.get(ApiConstants.incomingRequests);
+      final list = ((response.data['data']) as List)
+          .map((e) => FriendRequest.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Result.success(list);
+    } on DioException catch (e) {
+      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+    } catch (e) {
+      return Result.failure(e.toString());
+    }
+  }
+
+  Future<Result<void>> acceptRequest(String friendshipId) async {
+    try {
+      await _apiClient.dio.post(
+        '${ApiConstants.friendRequests}/$friendshipId/accept',
+      );
+      return Result.success(null);
+    } on DioException catch (e) {
+      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+    } catch (e) {
+      return Result.failure(e.toString());
+    }
+  }
+
+  Future<Result<void>> rejectRequest(String friendshipId) async {
+    try {
+      await _apiClient.dio.post(
+        '${ApiConstants.friendRequests}/$friendshipId/reject',
+      );
+      return Result.success(null);
     } on DioException catch (e) {
       return Result.failure(_getErrorMessage(e), _getErrorCode(e));
     } catch (e) {
