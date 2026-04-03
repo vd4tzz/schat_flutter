@@ -25,15 +25,13 @@ class Success<T> extends Result<T> {
   R when<R>({
     required R Function(T data) success,
     required R Function(String message, String? code) failure,
-  }) =>
-      success(data);
+  }) => success(data);
 
   @override
   R? whenOrNull<R>({
     R Function(T data)? success,
     R Function(String message, String? code)? failure,
-  }) =>
-      success?.call(data);
+  }) => success?.call(data);
 }
 
 class Failure<T> extends Result<T> {
@@ -46,13 +44,11 @@ class Failure<T> extends Result<T> {
   R when<R>({
     required R Function(T data) success,
     required R Function(String message, String? code) failure,
-  }) =>
-      failure(message, code);
+  }) => failure(message, code);
 
   @override
   R? whenOrNull<R>({
     R Function(T data)? success,
     R Function(String message, String? code)? failure,
-  }) =>
-      failure?.call(message, code);
+  }) => failure?.call(message, code);
 }

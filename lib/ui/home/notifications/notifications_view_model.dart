@@ -1,18 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../data/models/app_notification.dart';
 import '../../../data/models/friend_request.dart';
+import '../../../data/remote/socket_client.dart';
 import '../../../data/repositories/friendship_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
 
 class NotificationsViewModel extends ChangeNotifier {
   final NotificationRepository _notificationRepository;
   final FriendshipRepository _friendshipRepository;
+  StreamSubscription? _socketSub;
 
   NotificationsViewModel(
     this._notificationRepository,
     this._friendshipRepository,
-  );
+    SocketClient socketClient,
+  ) {
+    _socketSub = socketClient.notificationStream.listen(_onSocketNotification);
+  }
+
+  void _onSocketNotification(AppNotification notification) {
+    if (_notifications.any((n) => n.id == notification.id)) return;
+    _notifications = [notification, ..._notifications];
+    _unreadCount++;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _socketSub?.cancel();
+    super.dispose();
+  }
 
   List<AppNotification> _notifications = [];
   List<AppNotification> get notifications => _notifications;
@@ -76,7 +96,9 @@ class NotificationsViewModel extends ChangeNotifier {
   }
 
   Future<void> markAllAsRead() async {
-    _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+    _notifications = _notifications
+        .map((n) => n.copyWith(isRead: true))
+        .toList();
     _unreadCount = 0;
     notifyListeners();
 
@@ -101,8 +123,9 @@ class NotificationsViewModel extends ChangeNotifier {
     final result = await _friendshipRepository.acceptRequest(friendshipId);
     return result.when(
       success: (_) {
-        _incomingRequests =
-            _incomingRequests.where((r) => r.id != friendshipId).toList();
+        _incomingRequests = _incomingRequests
+            .where((r) => r.id != friendshipId)
+            .toList();
         notifyListeners();
         return true;
       },
@@ -114,8 +137,9 @@ class NotificationsViewModel extends ChangeNotifier {
     final result = await _friendshipRepository.rejectRequest(friendshipId);
     return result.when(
       success: (_) {
-        _incomingRequests =
-            _incomingRequests.where((r) => r.id != friendshipId).toList();
+        _incomingRequests = _incomingRequests
+            .where((r) => r.id != friendshipId)
+            .toList();
         notifyListeners();
         return true;
       },

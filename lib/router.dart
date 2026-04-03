@@ -15,6 +15,7 @@ import 'ui/auth/view/welcome_screen.dart';
 import 'ui/auth/view/login_screen.dart';
 import 'ui/auth/view/register_screen.dart';
 import 'ui/auth/view/otp_screen.dart';
+import 'data/remote/socket_client.dart';
 import 'ui/home/home_screen.dart';
 
 final appRouter = GoRouter(
@@ -39,6 +40,7 @@ final appRouter = GoRouter(
             create: (ctx) => NotificationsViewModel(
               ctx.read<NotificationRepository>(),
               ctx.read<FriendshipRepository>(),
+              ctx.read<SocketClient>(),
             ),
           ),
         ],

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'app_theme.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
+import 'data/remote/socket_client.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/friendship_repository.dart';
 import 'data/repositories/notification_repository.dart';
@@ -27,6 +28,12 @@ class SChat extends StatelessWidget {
         // 2. Remote
         ProxyProvider<TokenStorage, ApiClient>(
           update: (_, tokenStorage, _) => ApiClient(tokenStorage),
+        ),
+
+        ProxyProvider<TokenStorage, SocketClient>(
+          update: (_, tokenStorage, prev) =>
+              prev ?? SocketClient(tokenStorage),
+          dispose: (_, client) => client.dispose(),
         ),
 
         // 3. Repositories
