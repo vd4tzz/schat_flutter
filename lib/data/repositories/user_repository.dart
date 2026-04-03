@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
+import '../../core/utils/api_error.dart';
 import '../models/search_user_result.dart';
 import '../models/user.dart';
 import '../remote/api_client.dart';
@@ -22,7 +23,8 @@ class UserRepository {
           .toList();
       return Result.success(list);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -34,10 +36,8 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -62,10 +62,8 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -85,10 +83,8 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -100,10 +96,8 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -123,10 +117,8 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -138,42 +130,10 @@ class UserRepository {
       final user = User.fromJson(response.data as Map<String, dynamic>);
       return Result.success(user);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
-  }
-
-  String _getErrorMessage(DioException e) {
-    if (e.response?.statusCode == 400) {
-      final data = e.response?.data as Map<String, dynamic>?;
-      return data?['message'] as String? ?? 'Bad request';
-    }
-
-    if (e.response?.statusCode == 404) {
-      return 'User not found';
-    }
-
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timeout';
-    }
-
-    if (e.type == DioExceptionType.unknown) {
-      return 'Network error';
-    }
-
-    return e.message ?? 'Unknown error';
-  }
-
-  String? _getErrorCode(DioException e) {
-    if (e.response?.statusCode == 400) {
-      final data = e.response?.data as Map<String, dynamic>?;
-      return data?['code'] as String?;
-    }
-    return null;
   }
 }

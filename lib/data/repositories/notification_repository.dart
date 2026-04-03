@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
+import '../../core/utils/api_error.dart';
 import '../models/app_notification.dart';
 import '../remote/api_client.dart';
 
@@ -18,7 +19,8 @@ class NotificationRepository {
           .toList();
       return Result.success(list);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -31,7 +33,8 @@ class NotificationRepository {
       );
       return Result.success(response.data['count'] as int);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -42,7 +45,8 @@ class NotificationRepository {
       await _apiClient.dio.patch('${ApiConstants.notifications}/$id/read');
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -53,7 +57,8 @@ class NotificationRepository {
       await _apiClient.dio.patch(ApiConstants.notificationsReadAll);
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -64,20 +69,10 @@ class NotificationRepository {
       await _apiClient.dio.delete('${ApiConstants.notifications}/$id');
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
-  }
-
-  String _getErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timeout';
-    }
-    if (e.type == DioExceptionType.unknown) {
-      return 'Network error';
-    }
-    return e.message ?? 'Unknown error';
   }
 }

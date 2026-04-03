@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../core/result/result.dart';
+import '../../core/utils/api_error.dart';
 import '../local/token_storage.dart';
 import '../models/auth_request.dart';
 import '../models/auth_response.dart';
@@ -39,10 +40,8 @@ class AuthRepository {
 
       return Result.success(registerResponse.otpExpiresIn);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -62,10 +61,8 @@ class AuthRepository {
 
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -82,10 +79,8 @@ class AuthRepository {
 
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -107,7 +102,6 @@ class AuthRepository {
         response.data as Map<String, dynamic>,
       );
 
-      // Save tokens
       await _tokenStorage.saveTokens(
         accessToken: loginResponse.accessToken,
         refreshToken: loginResponse.refreshToken,
@@ -115,10 +109,8 @@ class AuthRepository {
 
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(
-        _getErrorMessage(e),
-        _getErrorCode(e),
-      );
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -142,39 +134,5 @@ class AuthRepository {
       await _tokenStorage.clearTokens();
       return Result.success(null);
     }
-  }
-
-  String _getErrorMessage(DioException e) {
-    if (e.response?.statusCode == 400) {
-      final data = e.response?.data as Map<String, dynamic>?;
-      return data?['message'] as String? ?? 'Bad request';
-    }
-
-    if (e.response?.statusCode == 401) {
-      return 'Invalid credentials';
-    }
-
-    if (e.response?.statusCode == 404) {
-      return 'User not found';
-    }
-
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timeout';
-    }
-
-    if (e.type == DioExceptionType.unknown) {
-      return 'Network error';
-    }
-
-    return e.message ?? 'Unknown error';
-  }
-
-  String? _getErrorCode(DioException e) {
-    if (e.response?.statusCode == 400) {
-      final data = e.response?.data as Map<String, dynamic>?;
-      return data?['code'] as String?;
-    }
-    return null;
   }
 }

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
+import '../../core/utils/api_error.dart';
 import '../models/friend_request.dart';
 import '../models/friendship_info.dart';
 import '../remote/api_client.dart';
@@ -23,7 +24,8 @@ class FriendshipRepository {
         friendshipId: data['id'] as String,
       ));
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -37,7 +39,8 @@ class FriendshipRepository {
           .toList();
       return Result.success(list);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -50,7 +53,8 @@ class FriendshipRepository {
       );
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -63,7 +67,8 @@ class FriendshipRepository {
       );
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
@@ -76,29 +81,10 @@ class FriendshipRepository {
       );
       return Result.success(null);
     } on DioException catch (e) {
-      return Result.failure(_getErrorMessage(e), _getErrorCode(e));
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
-  }
-
-  String _getErrorMessage(DioException e) {
-    if (e.response?.statusCode == 400 || e.response?.statusCode == 409) {
-      final data = e.response?.data as Map<String, dynamic>?;
-      return data?['message'] as String? ?? 'Bad request';
-    }
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timeout';
-    }
-    if (e.type == DioExceptionType.unknown) {
-      return 'Network error';
-    }
-    return e.message ?? 'Unknown error';
-  }
-
-  String? _getErrorCode(DioException e) {
-    final data = e.response?.data as Map<String, dynamic>?;
-    return data?['code'] as String?;
   }
 }
