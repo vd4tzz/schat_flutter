@@ -82,9 +82,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 '@${user.username}',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                 textAlign: TextAlign.center,
                               ),
@@ -132,10 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Loading overlay
                 if (viewModel.isUploading)
                   Container(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .scrim
-                        .withAlpha(100),
+                    color: Theme.of(context).colorScheme.scrim.withAlpha(100),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
@@ -196,10 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: colors.surface,
-                width: 5,
-              ),
+              border: Border.all(color: colors.surface, width: 5),
               boxShadow: [
                 BoxShadow(
                   color: colors.scrim.withAlpha(100),
@@ -268,10 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.delete_outline, color: colors.error),
-                title: Text(
-                  'Delete',
-                  style: TextStyle(color: colors.error),
-                ),
+                title: Text('Delete', style: TextStyle(color: colors.error)),
                 onTap: () async {
                   Navigator.pop(context);
                   if (isAvatar) {

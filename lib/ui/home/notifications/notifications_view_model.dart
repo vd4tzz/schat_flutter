@@ -26,6 +26,7 @@ class NotificationsViewModel extends ChangeNotifier {
     _notifications = [notification, ..._notifications];
     _unreadCount++;
     notifyListeners();
+    _notificationRepository.insertNotification(notification);
   }
 
   @override

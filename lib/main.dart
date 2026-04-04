@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_theme.dart';
+import 'data/local/app_database.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
 import 'data/remote/socket_client.dart';
@@ -24,6 +25,7 @@ class SChat extends StatelessWidget {
       providers: [
         // 1. Local
         Provider<TokenStorage>.value(value: TokenStorage.instance),
+        Provider<AppDatabase>(create: (_) => AppDatabase()),
 
         // 2. Remote
         ProxyProvider<TokenStorage, ApiClient>(
@@ -42,16 +44,16 @@ class SChat extends StatelessWidget {
               AuthRepository(tokenStorage, apiClient),
         ),
 
-        ProxyProvider<ApiClient, UserRepository>(
-          update: (_, apiClient, _) => UserRepository(apiClient),
+        ProxyProvider2<ApiClient, AppDatabase, UserRepository>(
+          update: (_, apiClient, db, _) => UserRepository(apiClient, db),
         ),
 
         ProxyProvider<ApiClient, FriendshipRepository>(
           update: (_, apiClient, _) => FriendshipRepository(apiClient),
         ),
 
-        ProxyProvider<ApiClient, NotificationRepository>(
-          update: (_, apiClient, _) => NotificationRepository(apiClient),
+        ProxyProvider2<ApiClient, AppDatabase, NotificationRepository>(
+          update: (_, apiClient, db, _) => NotificationRepository(apiClient, db),
         ),
 
         // 4. ViewModels

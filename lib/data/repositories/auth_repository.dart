@@ -54,10 +54,7 @@ class AuthRepository {
     try {
       final request = VerifyOtpRequest(email: email, otp: otp);
 
-      await _apiClient.dio.post(
-        '/auth/verify-otp',
-        data: request.toJson(),
-      );
+      await _apiClient.dio.post('/auth/verify-otp', data: request.toJson());
 
       return Result.success(null);
     } on DioException catch (e) {
@@ -72,10 +69,7 @@ class AuthRepository {
     try {
       final request = ResendOtpRequest(email: email);
 
-      await _apiClient.dio.post(
-        '/auth/resend-otp',
-        data: request.toJson(),
-      );
+      await _apiClient.dio.post('/auth/resend-otp', data: request.toJson());
 
       return Result.success(null);
     } on DioException catch (e) {
@@ -121,10 +115,7 @@ class AuthRepository {
       final refreshToken = await _tokenStorage.getRefreshToken();
       if (refreshToken != null) {
         final request = RefreshTokenRequest(refreshToken: refreshToken);
-        await _apiClient.dio.post(
-          '/auth/logout',
-          data: request.toJson(),
-        );
+        await _apiClient.dio.post('/auth/logout', data: request.toJson());
       }
 
       await _tokenStorage.clearTokens();
