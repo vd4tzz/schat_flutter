@@ -16,40 +16,67 @@ class NotificationRepository {
 
   NotificationRepository(this._apiClient, this._db);
 
-  Future<Result<List<AppNotification>>> list() async {
-    // 1. Đọc cache trước
-    final cached = await (
-      _db.select(_db.cachedNotificationTable)
-        ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
-    ).get();
-
-    if (cached.isNotEmpty) {
-      _fetchAndCache(); // fetch ngầm
-      return Result.success(cached.map(_rowToModel).toList());
-    }
-
-    // 2. Không có cache → fetch và chờ
-    return _fetchAndCache();
+  Stream<List<AppNotification>> watch() {
+    return (_db.select(_db.cachedNotificationTable)
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch()
+        .map((rows) => rows.map(_rowToModel).toList());
   }
 
-  Future<Result<List<AppNotification>>> _fetchAndCache() async {
-    try {
-      final response = await _apiClient.dio.get(ApiConstants.notifications);
-      final fresh = ((response.data['data']) as List)
-          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
-          .toList();
+  Future<Result<void>> refresh() => _fetchAndCache();
 
-      await _db.transaction(() async {
+  Future<Result<void>> _fetchAndCache() async {
+    try {
+      final latestRow =
+          await (_db.select(_db.cachedNotificationTable)
+                ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+                ..limit(1))
+              .getSingleOrNull();
+
+      // Offline > 30 ngày hoặc lần đầu → full refresh (xóa cache cũ)
+      // Trong vòng 30 ngày → incremental sync với since
+      final latestCreatedAt = latestRow != null
+          ? DateTime.parse(latestRow.createdAt)
+          : null;
+      final isStale =
+          latestCreatedAt == null ||
+          DateTime.now().difference(latestCreatedAt).inDays >= 30;
+
+      if (isStale) {
         await _db.delete(_db.cachedNotificationTable).go();
+      }
+
+      final since = isStale ? null : latestRow!.createdAt;
+
+      int page = 1;
+      const limit = 50;
+
+      while (true) {
+        final response = await _apiClient.dio.get(
+          ApiConstants.notifications,
+          queryParameters: {'page': page, 'limit': limit, 'since': since},
+        );
+
+        final fetched = (response.data['data'] as List)
+            .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+        if (fetched.isEmpty) break;
+
         await _db.batch(
           (b) => b.insertAll(
             _db.cachedNotificationTable,
-            fresh.map(_modelToCompanion),
+            fetched.map(_modelToCompanion),
+            mode: InsertMode.insertOrReplace,
           ),
         );
-      });
 
-      return Result.success(fresh);
+        final total = response.data['total'] as int;
+        if (page * limit >= total) break;
+        page++;
+      }
+
+      return Result.success(null);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
       return Result.failure(message, code);
@@ -58,6 +85,7 @@ class NotificationRepository {
     }
   }
 
+  // delete later
   Future<Result<int>> getUnreadCount() async {
     try {
       final response = await _apiClient.dio.get(
@@ -90,8 +118,9 @@ class NotificationRepository {
   }
 
   Future<Result<void>> markAllAsRead() async {
-    await (_db.update(_db.cachedNotificationTable))
-        .write(const CachedNotificationTableCompanion(isRead: Value(true)));
+    await (_db.update(
+      _db.cachedNotificationTable,
+    )).write(const CachedNotificationTableCompanion(isRead: Value(true)));
 
     try {
       await _apiClient.dio.patch(ApiConstants.notificationsReadAll);
@@ -105,9 +134,9 @@ class NotificationRepository {
   }
 
   Future<Result<void>> delete(String id) async {
-    await (_db.delete(_db.cachedNotificationTable)
-          ..where((t) => t.id.equals(id)))
-        .go();
+    await (_db.delete(
+      _db.cachedNotificationTable,
+    )..where((t) => t.id.equals(id))).go();
 
     try {
       await _apiClient.dio.delete('${ApiConstants.notifications}/$id');
@@ -120,11 +149,9 @@ class NotificationRepository {
     }
   }
 
-  /// Gọi khi nhận notification realtime từ socket
-  Future<void> insertNotification(AppNotification notification) =>
-      _db.into(_db.cachedNotificationTable).insertOnConflictUpdate(
-        _modelToCompanion(notification),
-      );
+  Future<void> insertNotification(AppNotification notification) => _db
+      .into(_db.cachedNotificationTable)
+      .insertOnConflictUpdate(_modelToCompanion(notification));
 
   // Helpers
   AppNotification _rowToModel(CachedNotificationTableData row) =>

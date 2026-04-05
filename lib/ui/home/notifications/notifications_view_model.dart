@@ -12,6 +12,7 @@ class NotificationsViewModel extends ChangeNotifier {
   final NotificationRepository _notificationRepository;
   final FriendshipRepository _friendshipRepository;
   StreamSubscription? _socketSub;
+  StreamSubscription? _dbSub;
 
   NotificationsViewModel(
     this._notificationRepository,
@@ -19,19 +20,23 @@ class NotificationsViewModel extends ChangeNotifier {
     SocketClient socketClient,
   ) {
     _socketSub = socketClient.notificationStream.listen(_onSocketNotification);
+
+    _dbSub = _notificationRepository.watch().listen((data) {
+      _notifications = data;
+      _unreadCount = data.where((n) => !n.isRead).length;
+      notifyListeners();
+    });
   }
 
   void _onSocketNotification(AppNotification notification) {
-    if (_notifications.any((n) => n.id == notification.id)) return;
-    _notifications = [notification, ..._notifications];
-    _unreadCount++;
-    notifyListeners();
+    // Chỉ lưu DB, stream tự cập nhật UI
     _notificationRepository.insertNotification(notification);
   }
 
   @override
   void dispose() {
     _socketSub?.cancel();
+    _dbSub?.cancel();
     super.dispose();
   }
 
@@ -58,14 +63,8 @@ class NotificationsViewModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    final result = await _notificationRepository.list();
-    result.when(
-      success: (data) {
-        _notifications = data;
-        _unreadCount = data.where((n) => !n.isRead).length;
-      },
-      failure: (msg, _) => _error = msg,
-    );
+    final result = await _notificationRepository.refresh();
+    result.when(success: (_) {}, failure: (msg, _) => _error = msg);
 
     _isLoading = false;
     notifyListeners();
@@ -86,37 +85,15 @@ class NotificationsViewModel extends ChangeNotifier {
   }
 
   Future<void> markAsRead(String id) async {
-    final index = _notifications.indexWhere((n) => n.id == id);
-    if (index == -1 || _notifications[index].isRead) return;
-
-    _notifications[index] = _notifications[index].copyWith(isRead: true);
-    _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
-    notifyListeners();
-
+    if (_notifications.any((n) => n.id == id && n.isRead)) return;
     await _notificationRepository.markAsRead(id);
   }
 
   Future<void> markAllAsRead() async {
-    _notifications = _notifications
-        .map((n) => n.copyWith(isRead: true))
-        .toList();
-    _unreadCount = 0;
-    notifyListeners();
-
     await _notificationRepository.markAllAsRead();
   }
 
   Future<void> deleteNotification(String id) async {
-    final removed = _notifications.firstWhere(
-      (n) => n.id == id,
-      orElse: () => _notifications.first,
-    );
-    _notifications = _notifications.where((n) => n.id != id).toList();
-    if (!removed.isRead) {
-      _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
-    }
-    notifyListeners();
-
     await _notificationRepository.delete(id);
   }
 
