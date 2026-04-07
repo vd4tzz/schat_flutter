@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../data/models/app_notification.dart';
 import '../../../data/models/friend_request.dart';
-import '../../../data/remote/socket_client.dart';
+import '../../../data/remote/socket_event_handler.dart';
 import '../../../data/repositories/friendship_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
 
@@ -17,20 +17,16 @@ class NotificationsViewModel extends ChangeNotifier {
   NotificationsViewModel(
     this._notificationRepository,
     this._friendshipRepository,
-    SocketClient socketClient,
+    SocketEventHandler dispatcher,
   ) {
-    _socketSub = socketClient.notificationStream.listen(_onSocketNotification);
+    // Dispatcher đã persist notification vào DB, chỉ cần trigger UI reload
+    _socketSub = dispatcher.notificationStream.listen((_) {});
 
     _dbSub = _notificationRepository.watch().listen((data) {
       _notifications = data;
       _unreadCount = data.where((n) => !n.isRead).length;
       notifyListeners();
     });
-  }
-
-  void _onSocketNotification(AppNotification notification) {
-    // Chỉ lưu DB, stream tự cập nhật UI
-    _notificationRepository.insertNotification(notification);
   }
 
   @override

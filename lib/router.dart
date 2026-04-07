@@ -1,12 +1,14 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/conversation_repository.dart';
 import 'data/repositories/friendship_repository.dart';
 import 'data/repositories/notification_repository.dart';
 import 'data/repositories/user_repository.dart';
 import 'ui/auth/login_view_model.dart';
 import 'ui/auth/register_view_model.dart';
 import 'ui/auth/otp_view_model.dart';
+import 'ui/chat/view/chat_screen.dart';
 import 'ui/home/conversations/inbox_view_model.dart';
 import 'ui/home/notifications/notifications_view_model.dart';
 import 'ui/home/profile/profile_view_model.dart';
@@ -15,7 +17,7 @@ import 'ui/auth/view/welcome_screen.dart';
 import 'ui/auth/view/login_screen.dart';
 import 'ui/auth/view/register_screen.dart';
 import 'ui/auth/view/otp_screen.dart';
-import 'data/remote/socket_client.dart';
+import 'data/remote/socket_event_handler.dart';
 import 'ui/home/home_screen.dart';
 
 final appRouter = GoRouter(
@@ -34,13 +36,14 @@ final appRouter = GoRouter(
             create: (ctx) => InboxViewModel(
               ctx.read<UserRepository>(),
               ctx.read<FriendshipRepository>(),
+              ctx.read<ConversationRepository>(),
             ),
           ),
           ChangeNotifierProvider(
             create: (ctx) => NotificationsViewModel(
               ctx.read<NotificationRepository>(),
               ctx.read<FriendshipRepository>(),
-              ctx.read<SocketClient>(),
+              ctx.read<SocketEventHandler>(),
             ),
           ),
         ],
@@ -73,6 +76,17 @@ final appRouter = GoRouter(
               120,
         ),
       ),
+    ),
+    GoRoute(
+      path: '/chat/:conversationId',
+      builder: (context, state) {
+        final conversationId = state.pathParameters['conversationId']!;
+        return ChatScreen(
+          conversationId: conversationId,
+          conversationName: state.uri.queryParameters['name'] ?? '',
+          conversationAvatarUrl: state.uri.queryParameters['avatarUrl'],
+        );
+      },
     ),
   ],
 );

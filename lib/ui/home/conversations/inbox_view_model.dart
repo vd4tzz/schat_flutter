@@ -2,16 +2,101 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/models/conversation.dart';
 import '../../../data/models/friendship_info.dart';
 import '../../../data/models/search_user_result.dart';
+import '../../../data/repositories/conversation_repository.dart';
 import '../../../data/repositories/friendship_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 
 class InboxViewModel extends ChangeNotifier {
   final UserRepository _userRepository;
   final FriendshipRepository _friendshipRepository;
+  final ConversationRepository _conversationRepository;
 
-  InboxViewModel(this._userRepository, this._friendshipRepository);
+  InboxViewModel(
+    this._userRepository,
+    this._friendshipRepository,
+    this._conversationRepository,
+  );
+
+  // ─── Conversations ────────────────────────────────────────────────────────
+
+  List<Conversation> _conversations = [];
+  List<Conversation> get conversations => _conversations;
+
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+
+  bool _hasMore = true;
+  bool get hasMore => _hasMore;
+
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+
+  String? _myUserId;
+  StreamSubscription<List<Conversation>>? _conversationSub;
+
+  void init(String myUserId) async {
+    _myUserId = myUserId;
+    _conversations = await _conversationRepository.getConversations(myUserId);
+    _isInitialized = true;
+    notifyListeners();
+
+    _conversationSub = _conversationRepository.watch(myUserId).listen((
+      conversations,
+    ) {
+      _conversations = conversations;
+      notifyListeners();
+    });
+    _sync();
+  }
+
+  Future<void> _sync() async {
+    final result = await _conversationRepository.sync(_myUserId!);
+    result.when(
+      success: (_) => _error = null,
+      failure: (message, _) => _error = message,
+    );
+    notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !_hasMore || _conversations.isEmpty) return;
+
+    final before = _conversations.last.updatedAt.toIso8601String();
+    _isLoadingMore = true;
+    notifyListeners();
+
+    final result = await _conversationRepository.loadMore(before, _myUserId!);
+    result.when(
+      success: (hasMore) => _hasMore = hasMore,
+      failure: (message, _) => _error = message,
+    );
+
+    _isLoadingMore = false;
+    notifyListeners();
+  }
+
+  Future<Conversation?> createDirectConversation(
+    String targetUserId,
+    String myUserId,
+  ) async {
+    final result = await _conversationRepository.createDirectConversation(
+      targetUserId,
+      myUserId,
+    );
+    return result.when(
+      success: (conv) => conv,
+      failure: (message, _) {
+        _error = message;
+        notifyListeners();
+        return null;
+      },
+    );
+  }
+
+  // ─── Search ───────────────────────────────────────────────────────────────
 
   List<SearchUserResult> _results = [];
   List<SearchUserResult> get results => _results;
@@ -64,7 +149,6 @@ class InboxViewModel extends ChangeNotifier {
     final result = await _friendshipRepository.sendRequest(addresseeId);
     return result.when(
       success: (info) {
-        // Update friendship status in search results
         final index = _results.indexWhere((r) => r.user.id == addresseeId);
         if (index != -1) {
           _results[index] = SearchUserResult(
@@ -108,6 +192,7 @@ class InboxViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _debounce?.cancel();
+    _conversationSub?.cancel();
     super.dispose();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../data/local/token_storage.dart';
 import 'splash_view_model.dart';
 import 'animated_splash_logo.dart';
 
@@ -29,8 +30,8 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 2500), () async {
       if (!mounted) return;
       final isLoggedIn = await context.read<SplashViewModel>().isLoggedIn();
+      if (isLoggedIn) await TokenStorage.instance.getUserId();
       if (!mounted) return;
-      // TODO: '/home' route not yet implemented; replace when main screen exists
       isLoggedIn ? context.go('/home') : context.go('/welcome');
     });
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../data/local/token_storage.dart';
+import '../../../../data/models/conversation.dart';
 import '../../../../data/models/friendship_info.dart';
 import '../../../../data/models/search_user_result.dart';
 import '../../../theme/app_colors.dart';
@@ -16,11 +19,46 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   bool _isSearching = false;
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    final userId = TokenStorage.instance.userId;
+    if (userId != null) {
+      context.read<InboxViewModel>().init(userId);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InboxViewModel>().addListener(_onViewModelChanged);
+    });
+  }
+
+  String? _lastError;
+
+  void _onViewModelChanged() {
+    final error = context.read<InboxViewModel>().error;
+    if (error != null && error != _lastError) {
+      _lastError = error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      context.read<InboxViewModel>().loadMore();
+    }
+  }
+
+  @override
   void dispose() {
+    context.read<InboxViewModel>().removeListener(_onViewModelChanged);
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -59,15 +97,131 @@ class _InboxScreenState extends State<InboxScreen> {
           ),
         ],
       ),
-      body: _isSearching
-          ? _buildSearchResults(theme)
-          : _buildInboxPlaceholder(),
+      body: _isSearching ? _buildSearchResults(theme) : _buildInbox(theme),
     );
   }
 
-  Widget _buildInboxPlaceholder() {
-    return const Center(child: Text('No conversations yet'));
+  Widget _buildInbox(ThemeData theme) {
+    return Consumer<InboxViewModel>(
+      builder: (context, vm, _) {
+        if (!vm.isInitialized) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (vm.conversations.isEmpty) {
+          return const Center(child: Text('No conversations yet'));
+        }
+
+        return ListView.builder(
+          controller: _scrollController,
+          itemCount: vm.conversations.length + (vm.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == vm.conversations.length) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            return _buildConversationTile(theme, vm.conversations[index]);
+          },
+        );
+      },
+    );
   }
+
+  Widget _buildConversationTile(ThemeData theme, Conversation item) {
+    final colors = theme.colorScheme;
+    final lastMsg = item.lastMessage;
+
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: colors.surfaceContainerHighest,
+        backgroundImage: item.avatarUrl != null
+            ? NetworkImage(item.avatarUrl!)
+            : null,
+        child: item.avatarUrl == null
+            ? Icon(Icons.person, color: colors.onSurfaceVariant)
+            : null,
+      ),
+      title: Text(
+        item.name ?? 'Unknown',
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: lastMsg != null
+          ? Text(
+              lastMsg.content ?? '(deleted)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: item.unreadCount > 0
+                    ? colors.onSurface
+                    : colors.onSurfaceVariant,
+                fontWeight: item.unreadCount > 0
+                    ? FontWeight.w500
+                    : FontWeight.normal,
+              ),
+            )
+          : null,
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (lastMsg != null)
+            Text(
+              _formatTime(item.updatedAt),
+              style: TextStyle(
+                fontSize: 12,
+                color: item.unreadCount > 0 ? colors.primary : colors.outline,
+              ),
+            ),
+          if (item.unreadCount > 0) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                item.unreadCount > 99 ? '99+' : '${item.unreadCount}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colors.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: () {
+        final name = Uri.encodeComponent(item.name ?? '');
+        final avatarUrl = item.avatarUrl != null
+            ? Uri.encodeComponent(item.avatarUrl!)
+            : null;
+        final uri = '/chat/${item.id}?name=$name'
+            '${avatarUrl != null ? '&avatarUrl=$avatarUrl' : ''}';
+        context.push(uri);
+      },
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt.toLocal());
+    if (diff.inDays == 0) {
+      return '${dt.toLocal().hour.toString().padLeft(2, '0')}:${dt.toLocal().minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return 'Yesterday';
+    } else if (diff.inDays < 7) {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return days[dt.toLocal().weekday - 1];
+    } else {
+      return '${dt.day}/${dt.month}/${dt.year}';
+    }
+  }
+
+  // ─── Search ───────────────────────────────────────────────────────────────
 
   Widget _buildSearchResults(ThemeData theme) {
     final colors = theme.colorScheme;
@@ -110,8 +264,7 @@ class _InboxScreenState extends State<InboxScreen> {
         return ListView.builder(
           itemCount: vm.results.length,
           itemBuilder: (context, index) {
-            final item = vm.results[index];
-            return _buildUserTile(context, theme, item);
+            return _buildUserTile(context, theme, vm.results[index]);
           },
         );
       },

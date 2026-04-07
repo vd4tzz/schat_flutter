@@ -35,6 +35,15 @@ abstract final class ApiConstants {
   static const friendRequests = '/friendships/requests';
   static const incomingRequests = '/friendships/requests/incoming';
 
+  // Conversations
+  static const conversations = '/conversations';
+
+  // Messages
+  static String conversationMessages(String conversationId) =>
+      '/conversations/$conversationId/messages';
+
+  static String message(String messageId) => '/messages/$messageId';
+
   // Notifications
   static const notifications = '/notifications';
   static const notificationsUnreadCount = '/notifications/unread-count';

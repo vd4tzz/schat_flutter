@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -15,6 +17,8 @@ class TokenStorage {
 
   final FlutterSecureStorage _storage;
   String? _cachedAccessToken;
+
+  String? userId;
 
   TokenStorage._internal(this._storage);
 
@@ -49,5 +53,20 @@ class TokenStorage {
   Future<bool> hasTokens() async {
     final token = await getAccessToken();
     return token != null;
+  }
+
+  Future<String?> getUserId() async {
+    if (userId != null) return userId;
+
+    final token = await getAccessToken();
+    if (token == null) return null;
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    final payload =
+        jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))))
+            as Map<String, dynamic>;
+    userId = payload['sub'] as String?;
+
+    return userId;
   }
 }

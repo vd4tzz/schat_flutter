@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'package:schat_flutter/core/utils/url_helper.dart';
 
 class User {
   final String id;
@@ -11,14 +11,6 @@ class User {
   final String? phoneNumber;
   final String? avatarUrl;
   final String? backgroundUrl;
-
-  static String? _fixUrl(String? url) {
-    if (url == null) return null;
-    if (Platform.isAndroid && url.contains('localhost')) {
-      return url.replaceAll('localhost', '10.0.2.2');
-    }
-    return url;
-  }
 
   User({
     required this.id,
@@ -45,8 +37,8 @@ class User {
           ? DateTime.parse(json['dateOfBirth'] as String).toUtc()
           : null,
       phoneNumber: json['phoneNumber'] as String?,
-      avatarUrl: _fixUrl(json['avatarUrl'] as String?),
-      backgroundUrl: _fixUrl(json['backgroundUrl'] as String?),
+      avatarUrl: fixUrl(json['avatarUrl'] as String?),
+      backgroundUrl: fixUrl(json['backgroundUrl'] as String?),
     );
   }
 
