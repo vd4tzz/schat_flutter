@@ -19,16 +19,16 @@ class ConversationRepository {
   static const _pageSize = 20;
   static const _cacheExpiryDays = 30;
 
-  // ─── Watch ────────────────────────────────────────────────────────────────
-
-  Stream<List<Conversation>> watch(String myUserId) {
+  /// Watch all conversations that [currentUserId] participates in,
+  /// ordered by most recently updated.
+  Stream<List<Conversation>> watchConversation(String currentUserId) {
     final query = (_db.select(_db.cachedConversationTable).join([
       innerJoin(
         _db.cachedParticipantTable,
         _db.cachedParticipantTable.conversationId.equalsExp(
               _db.cachedConversationTable.id,
             ) &
-            _db.cachedParticipantTable.userId.equals(myUserId),
+            _db.cachedParticipantTable.userId.equals(currentUserId),
       ),
     ]))..orderBy([OrderingTerm.desc(_db.cachedConversationTable.updatedAt)]);
 
@@ -36,21 +36,21 @@ class ConversationRepository {
       (rows) => rows.map((row) {
         final conv = row.readTable(_db.cachedConversationTable);
         final p = row.readTable(_db.cachedParticipantTable);
-        return Conversation.fromRow(conv, p);
+        return _rowToConversation(conv, p);
       }).toList(),
     );
   }
 
-  // ─── Get ──────────────────────────────────────────────────────────────────
-
-  Future<List<Conversation>> getConversations(String myUserId) async {
+  Future<List<Conversation>> getCachedConversations(
+    String currentUserId,
+  ) async {
     final query = (_db.select(_db.cachedConversationTable).join([
       innerJoin(
         _db.cachedParticipantTable,
         _db.cachedParticipantTable.conversationId.equalsExp(
               _db.cachedConversationTable.id,
             ) &
-            _db.cachedParticipantTable.userId.equals(myUserId),
+            _db.cachedParticipantTable.userId.equals(currentUserId),
       ),
     ]))..orderBy([OrderingTerm.desc(_db.cachedConversationTable.updatedAt)]);
 
@@ -58,61 +58,80 @@ class ConversationRepository {
     return rows.map((row) {
       final conv = row.readTable(_db.cachedConversationTable);
       final p = row.readTable(_db.cachedParticipantTable);
-      return Conversation.fromRow(conv, p);
+      return _rowToConversation(conv, p);
     }).toList();
   }
 
-  // ─── Sync (after) ─────────────────────────────────────────────────────────
-
-  Future<Result<void>> sync(String myUserId) async {
+  /// Sync conversations from server to local DB.
+  ///
+  /// 1. Get the latest updatedAt from cache.
+  /// 2. If cache is older than [_cacheExpiryDays], clear db and new fetch
+  /// from api.
+  /// 3. Otherwise, fetch only conversations updated after the latest cached one.
+  /// 4. Upsert fetched data into local DB.
+  Future<Result<void>> syncConversations(String myUserId) async {
     try {
-      var maxUpdatedAt = await _getMaxUpdatedAt();
+      var latestUpdatedAt = await _getUpdateAtOfLatestConv();
 
-      // Cache expired → full refresh
-      if (maxUpdatedAt != null) {
-        final lastSync = DateTime.parse(maxUpdatedAt);
+      // Cache expired → clear and do a new fetch
+      if (latestUpdatedAt != null) {
+        final lastSync = DateTime.parse(latestUpdatedAt);
         if (DateTime.now().difference(lastSync).inDays > _cacheExpiryDays) {
           await _db.delete(_db.cachedConversationTable).go();
           await _db.delete(_db.cachedParticipantTable).go();
-          maxUpdatedAt = null;
+          latestUpdatedAt = null;
         }
       }
 
+      // latestUpdatedAt == null → new fetch; otherwise → incremental sync
       final response = await _apiClient.dio.get(
         ApiConstants.conversations,
-        queryParameters: {if (maxUpdatedAt != null) 'after': maxUpdatedAt},
+        queryParameters: latestUpdatedAt != null
+            ? {'after': latestUpdatedAt}
+            : {'limit': _pageSize},
       );
-      final conversations = (response.data['data'] as List)
+
+      final conversationsWithParticipants = (response.data['data'] as List)
           .map(
-            (e) => Conversation.fromJson(e as Map<String, dynamic>, myUserId),
+            (e) => _conversationWithParticipantsFromJson(
+              e as Map<String, dynamic>,
+            ),
           )
           .toList();
-      await _upsert(conversations);
+
+      await _upsert(conversationsWithParticipants);
+
       return Result.success(null);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
+
       return Result.failure(message, code);
     } catch (e) {
       return Result.failure(e.toString());
     }
   }
 
-  // ─── Load more (before) ───────────────────────────────────────────────────
-
+  /// Fetch the next page of older conversations before [before] cursor
+  /// and cache them locally. Returns whether there are more pages.
   Future<Result<bool>> loadMore(String before, String myUserId) async {
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.conversations,
         queryParameters: {'before': before, 'limit': _pageSize},
       );
-      final conversations = (response.data['data'] as List)
+
+      final conversationsWithParticipants = (response.data['data'] as List)
           .map(
-            (e) => Conversation.fromJson(e as Map<String, dynamic>, myUserId),
+            (e) => _conversationWithParticipantsFromJson(
+              e as Map<String, dynamic>,
+            ),
           )
           .toList();
-      await _upsert(conversations);
+
+      await _upsert(conversationsWithParticipants);
 
       final hasMore = response.data['nextCursor'] != null;
+
       return Result.success(hasMore);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
@@ -122,23 +141,22 @@ class ConversationRepository {
     }
   }
 
-  // ─── Create direct ────────────────────────────────────────────────
-
   Future<Result<Conversation>> createDirectConversation(
     String targetUserId,
-    String myUserId,
   ) async {
     try {
       final response = await _apiClient.dio.post(
         ApiConstants.conversations,
         data: {'type': 'DIRECT', 'targetUserId': targetUserId},
       );
-      final conv = Conversation.fromJson(
+
+      final record = _conversationWithParticipantsFromJson(
         response.data as Map<String, dynamic>,
-        myUserId,
       );
-      await _upsert([conv]);
-      return Result.success(conv);
+
+      await _upsert([record]);
+
+      return Result.success(record.$1);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
       return Result.failure(message, code);
@@ -147,9 +165,7 @@ class ConversationRepository {
     }
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  Future<String?> _getMaxUpdatedAt() async {
+  Future<String?> _getUpdateAtOfLatestConv() async {
     final row =
         await (_db.select(_db.cachedConversationTable)
               ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
@@ -158,15 +174,16 @@ class ConversationRepository {
     return row?.updatedAt;
   }
 
-  Future<void> _upsert(List<Conversation> conversations) async {
+  Future<void> _upsert(List<(Conversation, List<Participant>)> records) async {
     await _db.batch((b) {
-      for (final conv in conversations) {
+      for (final (conv, participants) in records) {
         b.insert(
           _db.cachedConversationTable,
           _convToCompanion(conv),
           mode: InsertMode.insertOrReplace,
         );
-        for (final participant in conv.participants) {
+
+        for (final participant in participants) {
           b.insert(
             _db.cachedParticipantTable,
             _participantToCompanion(conv.id, participant),
@@ -177,7 +194,7 @@ class ConversationRepository {
     });
   }
 
-  /// Update denormalized lastMessage fields trong CachedConversationTable.
+  /// Update denormalized lastMessage.
   Future<void> updateLastMessage(Message message) async {
     // Lookup sender name from participants
     final participant =
@@ -205,7 +222,8 @@ class ConversationRepository {
     );
   }
 
-  /// Update sender's lastReadSeq khi nhận message mới.
+  /// "When a sender sends a message, update that sender's lastReadSeq to
+  /// the seq of that message."
   Future<void> updateSenderLastReadSeq(Message message) async {
     await (_db.update(_db.cachedParticipantTable)..where(
           (t) =>
@@ -217,7 +235,7 @@ class ConversationRepository {
         );
   }
 
-  /// Load participants cho 1 conversation từ local DB.
+  /// Get participants of a conversation from local DB.
   Future<Map<String, Participant>> getParticipants(
     String conversationId,
   ) async {
@@ -237,23 +255,6 @@ class ConversationRepository {
     };
   }
 
-  /// Mark last message as deleted trong conversation table.
-  Future<void> markLastMessageDeleted(
-    String conversationId,
-    String messageId,
-  ) async {
-    await (_db.update(_db.cachedConversationTable)..where(
-          (t) =>
-              t.id.equals(conversationId) & t.lastMessageId.equals(messageId),
-        ))
-        .write(
-          CachedConversationTableCompanion(
-            lastMessageIsDeleted: const Value(true),
-            lastMessageContent: const Value(null),
-          ),
-        );
-  }
-
   /// Update lastReadSeq của participant về lastSeq của conversation trong local DB.
   Future<void> markReadLocally(String conversationId, String userId) async {
     final conv = await (_db.select(
@@ -268,6 +269,44 @@ class ConversationRepository {
         .write(
           CachedParticipantTableCompanion(lastReadSeq: Value(conv.lastSeq)),
         );
+  }
+
+  (Conversation, List<Participant>) _conversationWithParticipantsFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final participants = (json['participants'] as List)
+        .map((e) => Participant.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final conv = Conversation.fromJson(json);
+    return (conv, participants);
+  }
+
+  Conversation _rowToConversation(
+    CachedConversationTableData conv,
+    CachedParticipantTableData p,
+  ) {
+    return Conversation(
+      id: conv.id,
+      type: conv.type,
+      name: conv.name,
+      avatarUrl: conv.avatarUrl,
+      lastSeq: conv.lastSeq,
+      lastReadSeq: p.lastReadSeq,
+      lastMessage: conv.lastMessageId != null
+          ? LastMessage(
+              id: conv.lastMessageId!,
+              content: conv.lastMessageContent,
+              type: conv.lastMessageType!,
+              seq: conv.lastSeq,
+              senderId: conv.lastMessageSenderId!,
+              senderName: conv.lastMessageSenderName!,
+              isDeleted: conv.lastMessageIsDeleted,
+              createdAt: DateTime.parse(conv.lastMessageCreatedAt!),
+            )
+          : null,
+      updatedAt: DateTime.parse(conv.updatedAt),
+      createdAt: DateTime.parse(conv.createdAt),
+    );
   }
 
   CachedConversationTableCompanion _convToCompanion(Conversation conv) {

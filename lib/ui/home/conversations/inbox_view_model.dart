@@ -39,21 +39,23 @@ class InboxViewModel extends ChangeNotifier {
 
   void init(String myUserId) async {
     _myUserId = myUserId;
-    _conversations = await _conversationRepository.getConversations(myUserId);
+    _conversations = await _conversationRepository.getCachedConversations(
+      myUserId,
+    );
     _isInitialized = true;
     notifyListeners();
 
-    _conversationSub = _conversationRepository.watch(myUserId).listen((
-      conversations,
-    ) {
-      _conversations = conversations;
-      notifyListeners();
-    });
+    _conversationSub = _conversationRepository
+        .watchConversation(myUserId)
+        .listen((conversations) {
+          _conversations = conversations;
+          notifyListeners();
+        });
     _sync();
   }
 
   Future<void> _sync() async {
-    final result = await _conversationRepository.sync(_myUserId!);
+    final result = await _conversationRepository.syncConversations(_myUserId!);
     result.when(
       success: (_) => _error = null,
       failure: (message, _) => _error = message,
@@ -78,13 +80,9 @@ class InboxViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Conversation?> createDirectConversation(
-    String targetUserId,
-    String myUserId,
-  ) async {
+  Future<Conversation?> createDirectConversation(String targetUserId) async {
     final result = await _conversationRepository.createDirectConversation(
       targetUserId,
-      myUserId,
     );
     return result.when(
       success: (conv) => conv,
