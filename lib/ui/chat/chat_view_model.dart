@@ -62,8 +62,7 @@ class ChatViewModel extends ChangeNotifier {
 
   StreamSubscription<Message>? _newMessageSub;
 
-  StreamSubscription<({String conversationId, Message message})>?
-  _messageEditedSub;
+  StreamSubscription<Message>? _messageEditedSub;
 
   StreamSubscription<({String conversationId, String messageId})>?
   _messageDeletedSub;
@@ -229,11 +228,11 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onMessageEdited(({String conversationId, Message message}) event) {
-    if (event.conversationId != conversationId) return;
+  void _onMessageEdited(Message message) {
+    if (message.conversationId != conversationId) return;
     _applyUpdate(
-      event.message.id,
-      (m) => event.message.copyWith(replyTo: m.replyTo),
+      message.id,
+      (m) => message.copyWith(replyTo: m.replyTo),
     );
     notifyListeners();
   }

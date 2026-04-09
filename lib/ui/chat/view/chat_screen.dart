@@ -204,6 +204,14 @@ class _MessageList extends StatelessWidget {
         final message = messages[messages.length - 1 - index];
         final isMe = message.senderId == vm.myUserId;
 
+        final myReaction = message.reactions
+            .cast<MessageReaction?>()
+            .firstWhere(
+              (r) => r!.userId == vm.myUserId,
+              orElse: () => null,
+            )
+            ?.emoji;
+
         return MessageBubble(
           message: message,
           isMe: isMe,
@@ -212,59 +220,18 @@ class _MessageList extends StatelessWidget {
           replySenderName: message.replyTo != null
               ? vm.getSenderName(message.replyTo!.senderId)
               : null,
-          onLongPress: () => _showMessageActions(context, message, isMe),
+          myCurrentReaction: myReaction,
+          onReact: (emoji) =>
+              context.read<ChatViewModel>().reactMessage(message.id, emoji: emoji),
           onReply: () => onReply(message),
+          onEdit: isMe && !message.isDeleted
+              ? () => _showEditDialog(context, context.read<ChatViewModel>(), message)
+              : null,
+          onDelete: isMe && !message.isDeleted
+              ? () => context.read<ChatViewModel>().deleteMessage(message.id)
+              : null,
         );
       },
-    );
-  }
-
-  void _showMessageActions(
-    BuildContext context,
-    Message message,
-    bool isMe,
-  ) {
-    if (message.isDeleted) return;
-    final vm = context.read<ChatViewModel>();
-
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Trả lời'),
-              onTap: () {
-                Navigator.pop(context);
-                onReply(message);
-              },
-            ),
-            if (isMe) ...[
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Chỉnh sửa'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showEditDialog(context, vm, message);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text(
-                  'Xóa',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  vm.deleteMessage(message.id);
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 

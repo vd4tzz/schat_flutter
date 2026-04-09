@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/message.dart';
+import 'message_reaction_overlay.dart';
 
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
   final String senderName;
   final String? senderAvatarUrl;
   final String? replySenderName;
-  final VoidCallback? onLongPress;
-  final VoidCallback? onReply;
+  final String? myCurrentReaction;
+  final void Function(String?) onReact;
+  final VoidCallback onReply;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const MessageBubble({
     super.key,
@@ -18,32 +22,64 @@ class MessageBubble extends StatelessWidget {
     required this.senderName,
     this.senderAvatarUrl,
     this.replySenderName,
-    this.onLongPress,
-    this.onReply,
+    this.myCurrentReaction,
+    required this.onReact,
+    required this.onReply,
+    this.onEdit,
+    this.onDelete,
   });
+
+  @override
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<MessageBubble> {
+  final _bubbleKey = GlobalKey();
+
+  void _handleLongPress() {
+    final box =
+        _bubbleKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final pos = box.localToGlobal(Offset.zero);
+    final rect = pos & box.size;
+
+    showReactionOverlay(
+      context: context,
+      bubbleRect: rect,
+      isMe: widget.isMe,
+      isDeleted: widget.message.isDeleted,
+      myCurrentReaction: widget.myCurrentReaction,
+      onReact: widget.onReact,
+      onReply: widget.onReply,
+      onEdit: widget.onEdit,
+      onDelete: widget.onDelete,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isOptimistic = message.seq == -1;
+    final isOptimistic = widget.message.seq == -1;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: widget.isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) ...[
+          if (!widget.isMe) ...[
             CircleAvatar(
               radius: 14,
-              backgroundImage: senderAvatarUrl != null
-                  ? NetworkImage(senderAvatarUrl!)
+              backgroundImage: widget.senderAvatarUrl != null
+                  ? NetworkImage(widget.senderAvatarUrl!)
                   : null,
-              child: senderAvatarUrl == null
+              child: widget.senderAvatarUrl == null
                   ? Text(
-                      senderName.isNotEmpty
-                          ? senderName[0].toUpperCase()
+                      widget.senderName.isNotEmpty
+                          ? widget.senderName[0].toUpperCase()
                           : '?',
                       style: const TextStyle(fontSize: 12),
                     )
@@ -53,20 +89,22 @@ class MessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: GestureDetector(
-              onLongPress: onLongPress,
+              onLongPress: _handleLongPress,
               child: Column(
-                crossAxisAlignment:
-                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: widget.isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   _BubbleContent(
-                    message: message,
-                    isMe: isMe,
+                    key: _bubbleKey,
+                    message: widget.message,
+                    isMe: widget.isMe,
                     isOptimistic: isOptimistic,
-                    replySenderName: replySenderName,
+                    replySenderName: widget.replySenderName,
                     theme: theme,
                   ),
-                  if (message.reactions.isNotEmpty)
-                    _ReactionsRow(reactions: message.reactions),
+                  if (widget.message.reactions.isNotEmpty)
+                    _ReactionsRow(reactions: widget.message.reactions),
                 ],
               ),
             ),
@@ -89,6 +127,7 @@ class _BubbleContent extends StatelessWidget {
   final ThemeData theme;
 
   const _BubbleContent({
+    super.key,
     required this.message,
     required this.isMe,
     required this.isOptimistic,
@@ -107,9 +146,8 @@ class _BubbleContent extends StatelessWidget {
     final bgColor = isMe
         ? theme.colorScheme.primary
         : theme.colorScheme.surfaceContainerHighest;
-    final textColor = isMe
-        ? theme.colorScheme.onPrimary
-        : theme.colorScheme.onSurface;
+    final textColor =
+        isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
 
     return Opacity(
       opacity: isOptimistic ? 0.6 : 1.0,
@@ -241,7 +279,6 @@ class _ReactionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Group by emoji
     final Map<String, int> emojiCount = {};
     for (final r in reactions) {
       emojiCount[r.emoji] = (emojiCount[r.emoji] ?? 0) + 1;
@@ -255,14 +292,13 @@ class _ReactionsRow extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withValues(
-                  alpha: 0.3,
-                ),
+                color: Theme.of(context)
+                    .colorScheme
+                    .outline
+                    .withValues(alpha: 0.3),
               ),
             ),
             child: Text(
