@@ -55,6 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _onScroll() {
     // reverse: true → maxScrollExtent = top = oldest messages
+    if (_vm.isLoadingMore || !_vm.hasMore) return;
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _vm.loadMore();
