@@ -18,9 +18,7 @@ class MessageRepository {
 
   static const _pageSize = 20;
 
-  // ─── Local DB ─────────────────────────────────────────────────────────────
-
-  Future<List<Message>> getMessages(
+  Future<List<Message>> getCachedMessages(
     String conversationId, {
     int limit = _pageSize,
   }) async {
@@ -34,7 +32,59 @@ class MessageRepository {
     return _populateReplyTo(messages);
   }
 
-  Future<(List<Message>, bool)> loadMore(
+  /// Lookup a single message: check DB first, fallback to API if not found.
+  Future<Message?> getMessage(String messageId) async {
+    final row = await (_db.select(
+      _db.cachedMessageTable,
+    )..where((t) => t.id.equals(messageId))).getSingleOrNull();
+    if (row != null) return Message.fromRow(row);
+
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.message(messageId),
+      );
+      final message = Message.fromJson(response.data as Map<String, dynamic>);
+      await upsertMessage(message);
+      return message;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sync messages from server and return updated cached messages.
+  /// If cache exists, fetch newer ones; otherwise fetch latest.
+  Future<Result<List<Message>>> syncAndGetMessages(
+    String conversationId, {
+    int limit = _pageSize,
+  }) async {
+    try {
+      final latestSeq = await _getLatestSeq(conversationId);
+
+      final response = await _apiClient.dio.get(
+        ApiConstants.conversationMessages(conversationId),
+        queryParameters: latestSeq != null
+            ? {'after': latestSeq}
+            : {'limit': _pageSize},
+      );
+
+      final messages = (response.data as List)
+          .map((e) => Message.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      await upsertMessages(messages);
+
+      final updated = await getCachedMessages(conversationId, limit: limit);
+
+      return Result.success(updated);
+    } on DioException catch (e) {
+      final (message, code) = parseApiError(e);
+      return Result.failure(message, code);
+    } catch (e) {
+      return Result.failure(e.toString());
+    }
+  }
+
+  Future<(List<Message>, bool)> loadMoreMessages(
     String conversationId,
     int beforeSeq, {
     int limit = _pageSize,
@@ -49,31 +99,38 @@ class MessageRepository {
               ..orderBy([(t) => OrderingTerm.desc(t.seq)])
               ..limit(limit))
             .get();
-    final fromDb = rows.map(Message.fromRow).toList();
+    final cachedMessage = rows.map(Message.fromRow).toList();
 
-    if (fromDb.length == limit) {
-      return (await _populateReplyTo(fromDb), true);
+    if (cachedMessage.length == limit) {
+      return (await _populateReplyTo(cachedMessage), true);
     }
 
-    // DB không đủ → fetch thêm từ API
-    final apiBeforeSeq = fromDb.isNotEmpty ? fromDb.last.seq : beforeSeq;
-    final result = await _fetchAndCacheOldMessages(
-      conversationId,
-      before: apiBeforeSeq,
-    );
+    // DB didn't have enough → fetch older from API
+    // Use the smallest cached seq as cursor to avoid re-fetching existing messages
+    final apiBeforeSeq = cachedMessage.isNotEmpty
+        ? cachedMessage.last.seq
+        : beforeSeq;
 
-    if (result is Failure) {
-      // Lỗi mạng → trả về những gì DB có, vẫn cho loadMore tiếp
-      return (await _populateReplyTo(fromDb), fromDb.isNotEmpty);
+    List<Message> fetched;
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.conversationMessages(conversationId),
+        queryParameters: {'before': apiBeforeSeq, 'limit': _pageSize},
+      );
+      fetched = (response.data as List)
+          .map((e) => Message.fromJson(e as Map<String, dynamic>))
+          .toList();
+      await upsertMessages(fetched);
+    } on DioException {
+      // Network error → return whatever DB has
+      return (await _populateReplyTo(cachedMessage), cachedMessage.isNotEmpty);
     }
 
-    final fetched = (result as Success<List<Message>>).data;
-
-    if (fromDb.isEmpty && fetched.isEmpty) {
+    if (cachedMessage.isEmpty && fetched.isEmpty) {
       return (<Message>[], false);
     }
 
-    // Re-query DB để lấy đầy đủ (cả fromDb + fetched đã cache)
+    // Re-query DB to get full page (both existing cache + newly fetched)
     final updated =
         await (_db.select(_db.cachedMessageTable)
               ..where(
@@ -89,78 +146,15 @@ class MessageRepository {
     return (await _populateReplyTo(combined), fetched.length == _pageSize);
   }
 
-  /// Fetch messages mới nhất từ API (không có cursor) và cache vào DB.
-  /// Dùng khi DB trống — lần đầu mở conversation.
-  Future<Result<void>> fetchLatestMessages(String conversationId) async {
-    try {
-      final response = await _apiClient.dio.get(
-        ApiConstants.conversationMessages(conversationId),
-        queryParameters: {'limit': _pageSize},
-      );
-      final messages = (response.data as List)
-          .map((e) => Message.fromJson(e as Map<String, dynamic>))
-          .toList();
-      await upsertMessages(messages);
-      return Result.success(null);
-    } on DioException catch (e) {
-      final (message, code) = parseApiError(e);
-      return Result.failure(message, code);
-    } catch (e) {
-      return Result.failure(e.toString());
-    }
+  Future<int?> _getLatestSeq(String conversationId) async {
+    final row =
+        await (_db.select(_db.cachedMessageTable)
+              ..where((t) => t.conversationId.equals(conversationId))
+              ..orderBy([(t) => OrderingTerm.desc(t.seq)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.seq;
   }
-
-  /// Fetch messages mới hơn [afterSeq] từ API và cache vào DB.
-  /// Dùng cho initial sync khi DB đã có data.
-  Future<Result<void>> syncNewMessages(
-    String conversationId,
-    int afterSeq,
-  ) async {
-    try {
-      final response = await _apiClient.dio.get(
-        ApiConstants.conversationMessages(conversationId),
-        queryParameters: {'after': afterSeq},
-      );
-
-      final messages = (response.data as List)
-          .map((e) => Message.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      await upsertMessages(messages);
-
-      return Result.success(null);
-    } on DioException catch (e) {
-      final (message, code) = parseApiError(e);
-      return Result.failure(message, code);
-    } catch (e) {
-      return Result.failure(e.toString());
-    }
-  }
-
-  /// Fetch messages cũ hơn [before] từ API và cache vào DB.
-  Future<Result<List<Message>>> _fetchAndCacheOldMessages(
-    String conversationId, {
-    required int before,
-  }) async {
-    try {
-      final response = await _apiClient.dio.get(
-        ApiConstants.conversationMessages(conversationId),
-        queryParameters: {'before': before, 'limit': _pageSize},
-      );
-      final messages = (response.data as List)
-          .map((e) => Message.fromJson(e as Map<String, dynamic>))
-          .toList();
-      await upsertMessages(messages);
-      return Result.success(messages);
-    } on DioException catch (e) {
-      final (message, code) = parseApiError(e);
-      return Result.failure(message, code);
-    } catch (e) {
-      return Result.failure(e.toString());
-    }
-  }
-
-  // ─── Upsert ───────────────────────────────────────────────────────────────
 
   Future<void> upsertMessage(Message message) async {
     await _db
@@ -180,8 +174,6 @@ class MessageRepository {
       }
     });
   }
-
-  // ─── Update ───────────────────────────────────────────────────────────────
 
   Future<void> markDeleted(String messageId) async {
     await (_db.update(
@@ -205,8 +197,8 @@ class MessageRepository {
     );
   }
 
-  /// Update reactions của 1 message trong DB.
-  Future<void> applyReaction(
+  /// Update reactions.
+  Future<void> updateReaction(
     String messageId,
     String userId,
     String? emoji,
@@ -237,27 +229,6 @@ class MessageRepository {
         ),
       ),
     );
-  }
-
-  // ─── Lookup ───────────────────────────────────────────────────────────────
-
-  /// Lookup 1 message: DB trước, fallback fetch API nếu không có.
-  Future<Message?> getMessage(String messageId) async {
-    final row = await (_db.select(
-      _db.cachedMessageTable,
-    )..where((t) => t.id.equals(messageId))).getSingleOrNull();
-    if (row != null) return Message.fromRow(row);
-
-    try {
-      final response = await _apiClient.dio.get(
-        ApiConstants.message(messageId),
-      );
-      final message = Message.fromJson(response.data as Map<String, dynamic>);
-      await upsertMessage(message);
-      return message;
-    } catch (_) {
-      return null;
-    }
   }
 
   /// Populate replyTo cho danh sách messages.
