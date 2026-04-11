@@ -195,8 +195,25 @@ class ConversationRepository {
   }
 
   /// Update denormalized lastMessage.
+  /// If conversation is not cached, fetch it from API first.
   Future<void> updateLastMessage(Message message) async {
-    // Lookup sender name from participants
+    final conv = await (_db.select(
+      _db.cachedConversationTable,
+    )..where((t) => t.id.equals(message.conversationId))).getSingleOrNull();
+
+    if (conv == null) {
+      try {
+        final response = await _apiClient.dio.get(
+          ApiConstants.conversation(message.conversationId),
+        );
+        final record = _conversationWithParticipantsFromJson(
+          response.data as Map<String, dynamic>,
+        );
+        await _upsert([record]);
+      } catch (_) {}
+      return;
+    }
+
     final participant =
         await (_db.select(_db.cachedParticipantTable)..where(
               (t) =>
@@ -215,7 +232,7 @@ class ConversationRepository {
         lastMessageType: Value(message.type.toApiString()),
         lastMessageSenderId: Value(message.senderId),
         lastMessageSenderName: Value(participant?.fullName ?? ''),
-        lastMessageIsDeleted: const Value(false),
+        lastMessageIsDeleted: Value(message.isDeleted),
         lastMessageCreatedAt: Value(message.createdAt.toIso8601String()),
         updatedAt: Value(message.createdAt.toIso8601String()),
       ),
@@ -236,7 +253,7 @@ class ConversationRepository {
   }
 
   /// Get participants of a conversation from local DB.
-  Future<Map<String, Participant>> getParticipants(
+  Future<Map<String, Participant>> getCachedParticipants(
     String conversationId,
   ) async {
     final rows = await (_db.select(
@@ -255,20 +272,13 @@ class ConversationRepository {
     };
   }
 
-  /// Update lastReadSeq của participant về lastSeq của conversation trong local DB.
-  Future<void> markReadLocally(String conversationId, String userId) async {
-    final conv = await (_db.select(
-      _db.cachedConversationTable,
-    )..where((t) => t.id.equals(conversationId))).getSingleOrNull();
-    if (conv == null) return;
-
+  /// Update lastReadSeq of a participant in local DB.
+  Future<void> markRead(String conversationId, String userId, int seq) async {
     await (_db.update(_db.cachedParticipantTable)..where(
           (t) =>
               t.conversationId.equals(conversationId) & t.userId.equals(userId),
         ))
-        .write(
-          CachedParticipantTableCompanion(lastReadSeq: Value(conv.lastSeq)),
-        );
+        .write(CachedParticipantTableCompanion(lastReadSeq: Value(seq)));
   }
 
   (Conversation, List<Participant>) _conversationWithParticipantsFromJson(

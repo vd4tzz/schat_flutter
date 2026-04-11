@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../core/result/result.dart';
 import '../../data/local/token_storage.dart';
 import '../../data/models/message.dart';
 import '../../data/models/participant.dart';
@@ -13,35 +12,32 @@ import '../../data/remote/socket_event_handler.dart';
 class ChatViewModel extends ChangeNotifier {
   final MessageRepository _messageRepository;
   final ConversationRepository _conversationRepository;
-  final SocketEventHandler _dispatcher;
+  final SocketEventHandler _eventHandler;
   final String conversationId;
 
   String? _myUserId;
   String? get myUserId => _myUserId;
 
-  // ─── Participants ─────────────────────────────────────────────────────────
   Map<String, Participant> _participants = {};
-
-  Participant? getParticipant(String userId) => _participants[userId];
 
   String getSenderName(String userId) => _participants[userId]?.fullName ?? '';
 
   String? getSenderAvatarUrl(String userId) => _participants[userId]?.avatarUrl;
 
   // ─── Message lists ────────────────────────────────────────────────────────
-  /// Newest-first (DESC) từ DB, tích lũy dần khi loadMore
+  /// Newest-first (DESC) from DB, accumulated by loadMore
   List<Message> _cachedMessages = [];
 
-  /// Append order, chỉ tồn tại trong session hiện tại
+  /// Append order, only exists in current session
   final List<Message> _realtimeMessages = [];
 
-  /// Oldest-first list để render UI (reverse ListView)
-  List<Message> get displayMessages => [
+  /// Oldest-first list for UI rendering (reverse ListView)
+  List<Message> get messages => [
     ..._cachedMessages.reversed,
     ..._realtimeMessages,
   ];
 
-  // ─── State ────────────────────────────────────────────────────────────────
+  // ----- State -------------------------------------------------------------
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
@@ -56,8 +52,9 @@ class ChatViewModel extends ChangeNotifier {
 
   String? _error;
   String? get error => _error;
+  // -------------------------------------------------------------------------
 
-  // ─── Subscriptions ────────────────────────────────────────────────────────
+  // ----- Subscriptions -----------------------------------------------------
   StreamSubscription<({Message message, String tempId})>? _messageSentSub;
 
   StreamSubscription<Message>? _newMessageSub;
@@ -72,6 +69,10 @@ class ChatViewModel extends ChangeNotifier {
   >?
   _reactionUpdatedSub;
 
+  StreamSubscription<({String conversationId, String userId, int seq})>?
+  _readReceiptSub;
+  // -------------------------------------------------------------------------
+
   ChatViewModel({
     required MessageRepository messageRepository,
     required ConversationRepository conversationRepository,
@@ -79,42 +80,32 @@ class ChatViewModel extends ChangeNotifier {
     required this.conversationId,
   }) : _messageRepository = messageRepository,
        _conversationRepository = conversationRepository,
-       _dispatcher = dispatcher {
+       _eventHandler = dispatcher {
     _subscribeToDispatcher();
     _init();
   }
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
-
   Future<void> _init() async {
-    _participants = await _conversationRepository.getParticipants(
+    _myUserId = await TokenStorage.instance.getUserId();
+
+    _participants = await _conversationRepository.getCachedParticipants(
       conversationId,
     );
 
-    _cachedMessages = await _messageRepository.getMessages(conversationId);
+    _cachedMessages = await _messageRepository.getCachedMessages(
+      conversationId,
+    );
 
     _isLoading = false;
     notifyListeners();
 
-    _myUserId = await TokenStorage.instance.getUserId();
-
-    final Result<void> result;
-    if (_cachedMessages.isNotEmpty) {
-      result = await _messageRepository.syncNewMessages(
-        conversationId,
-        _cachedMessages.first.seq,
-      );
-    } else {
-      result = await _messageRepository.fetchLatestMessages(conversationId);
-    }
+    final result = await _messageRepository.syncAndGetMessages(conversationId);
 
     result.when(
-      success: (_) async {
-        _cachedMessages = await _messageRepository.getMessages(conversationId);
-
-        if (_cachedMessages.isNotEmpty) {
-          final newMaxSeq = _cachedMessages.first.seq;
-          _realtimeMessages.removeWhere((m) => m.seq <= newMaxSeq);
+      success: (messages) {
+        _cachedMessages = messages;
+        if (messages.isNotEmpty) {
+          _realtimeMessages.removeWhere((m) => m.seq <= messages.first.seq);
         }
         notifyListeners();
       },
@@ -127,8 +118,6 @@ class ChatViewModel extends ChangeNotifier {
     _markRead();
   }
 
-  // ─── Load More ────────────────────────────────────────────────────────────
-
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore || _cachedMessages.isEmpty) return;
 
@@ -136,7 +125,7 @@ class ChatViewModel extends ChangeNotifier {
     _isLoadingMore = true;
     notifyListeners();
 
-    final (older, hasMore) = await _messageRepository.loadMore(
+    final (older, hasMore) = await _messageRepository.loadMoreMessages(
       conversationId,
       oldestSeq,
     );
@@ -148,8 +137,6 @@ class ChatViewModel extends ChangeNotifier {
     _isLoadingMore = false;
     notifyListeners();
   }
-
-  // ─── Actions ──────────────────────────────────────────────────────────────
 
   void sendMessage(String content, {String? replyToId}) {
     if (content.trim().isEmpty) return;
@@ -167,7 +154,7 @@ class ChatViewModel extends ChangeNotifier {
     _isSending = true;
     notifyListeners();
 
-    _dispatcher.sendMessage(
+    _eventHandler.sendMessage(
       conversationId: conversationId,
       content: content.trim(),
       tempId: tempId,
@@ -176,7 +163,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void editMessage(String messageId, String newContent) {
-    _dispatcher.editMessage(
+    _eventHandler.editMessage(
       conversationId: conversationId,
       messageId: messageId,
       content: newContent,
@@ -184,40 +171,46 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void deleteMessage(String messageId) {
-    _dispatcher.deleteMessage(
+    _eventHandler.deleteMessage(
       conversationId: conversationId,
       messageId: messageId,
     );
   }
 
   void reactMessage(String messageId, {String? emoji}) {
-    _dispatcher.reactMessage(
+    _eventHandler.reactMessage(
       conversationId: conversationId,
       messageId: messageId,
       emoji: emoji,
     );
   }
 
-  // ─── Dispatcher handlers ──────────────────────────────────────────────────
-
   void _subscribeToDispatcher() {
-    _messageSentSub = _dispatcher.messageSentStream.listen(_onMessageSent);
-    _newMessageSub = _dispatcher.newMessageStream.listen(_onNewMessage);
-    _messageEditedSub = _dispatcher.messageEditedStream.listen(
+    _messageSentSub = _eventHandler.messageSentStream.listen(_onMessageSent);
+    _newMessageSub = _eventHandler.newMessageStream.listen(_onNewMessage);
+    _messageEditedSub = _eventHandler.messageEditedStream.listen(
       _onMessageEdited,
     );
-    _messageDeletedSub = _dispatcher.messageDeletedStream.listen(
+    _messageDeletedSub = _eventHandler.messageDeletedStream.listen(
       _onMessageDeleted,
     );
-    _reactionUpdatedSub = _dispatcher.reactionUpdatedStream.listen(
+    _reactionUpdatedSub = _eventHandler.reactionUpdatedStream.listen(
       _onReactionUpdated,
     );
+    _readReceiptSub = _eventHandler.readReceiptStream.listen(_onReadReceipt);
   }
 
   void _onMessageSent(({Message message, String tempId}) event) async {
-    _realtimeMessages.removeWhere((m) => m.id == event.tempId);
+    var found = false;
+    for (var i = 0; i < _realtimeMessages.length; i++) {
+      if (_realtimeMessages[i].id == event.tempId) {
+        _realtimeMessages.removeAt(i);
+        found = true;
+        break;
+      }
+    }
     _realtimeMessages.add(await _attachReplyTo(event.message));
-    _isSending = false;
+    if (found) _isSending = false;
     notifyListeners();
   }
 
@@ -228,18 +221,18 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onMessageEdited(Message message) {
-    if (message.conversationId != conversationId) return;
-    _applyUpdate(
-      message.id,
-      (m) => message.copyWith(replyTo: m.replyTo),
+  void _onMessageEdited(Message editedMessage) {
+    if (editedMessage.conversationId != conversationId) return;
+    _updateMessage(
+      editedMessage.id,
+      (m) => editedMessage.copyWith(replyTo: m.replyTo, reactions: m.reactions),
     );
     notifyListeners();
   }
 
   void _onMessageDeleted(({String conversationId, String messageId}) event) {
     if (event.conversationId != conversationId) return;
-    _applyUpdate(
+    _updateMessage(
       event.messageId,
       (m) => m.copyWith(isDeleted: true, content: null),
     );
@@ -252,7 +245,7 @@ class ChatViewModel extends ChangeNotifier {
   ) {
     if (event.conversationId != conversationId) return;
 
-    _applyUpdate(event.messageId, (m) {
+    _updateMessage(event.messageId, (m) {
       final reactions = List<MessageReaction>.from(m.reactions)
         ..removeWhere((r) => r.userId == event.userId);
       if (event.emoji != null) {
@@ -269,10 +262,37 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onReadReceipt(
+    ({String conversationId, String userId, int seq}) event,
+  ) async {
+    if (event.conversationId != conversationId) return;
+    _participants = await _conversationRepository.getCachedParticipants(
+      conversationId,
+    );
+    notifyListeners();
+  }
+
   void _markRead() {
     if (_myUserId == null) return;
-    _dispatcher.markRead(conversationId);
-    _conversationRepository.markReadLocally(conversationId, _myUserId!);
+
+    final seq = _latestSeq;
+    if (seq == null) return;
+
+    _eventHandler.markRead(conversationId, seq);
+    _conversationRepository.markRead(conversationId, _myUserId!, seq);
+  }
+
+  int? get _latestSeq {
+    final cachedSeq = _cachedMessages.isNotEmpty
+        ? _cachedMessages.first.seq
+        : null;
+    final realtimeSeq = _realtimeMessages.isNotEmpty
+        ? _realtimeMessages.last.seq
+        : null;
+
+    if (cachedSeq == null) return realtimeSeq;
+    if (realtimeSeq == null) return cachedSeq;
+    return cachedSeq > realtimeSeq ? cachedSeq : realtimeSeq;
   }
 
   Future<Message> _attachReplyTo(Message message) async {
@@ -292,7 +312,7 @@ class ChatViewModel extends ChangeNotifier {
     return message;
   }
 
-  void _applyUpdate(String messageId, Message Function(Message) transform) {
+  void _updateMessage(String messageId, Message Function(Message) transform) {
     for (var i = 0; i < _cachedMessages.length; i++) {
       if (_cachedMessages[i].id == messageId) {
         _cachedMessages[i] = transform(_cachedMessages[i]);
@@ -316,12 +336,12 @@ class ChatViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    print('ChatViewModel[$conversationId] disposed');
     _messageSentSub?.cancel();
     _newMessageSub?.cancel();
     _messageEditedSub?.cancel();
     _messageDeletedSub?.cancel();
     _reactionUpdatedSub?.cancel();
+    _readReceiptSub?.cancel();
     super.dispose();
   }
 }

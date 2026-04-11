@@ -176,7 +176,7 @@ class _MessageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final messages = vm.displayMessages;
+    final messages = vm.messages;
 
     if (messages.isEmpty) {
       return const Center(
@@ -207,10 +207,7 @@ class _MessageList extends StatelessWidget {
 
         final myReaction = message.reactions
             .cast<MessageReaction?>()
-            .firstWhere(
-              (r) => r!.userId == vm.myUserId,
-              orElse: () => null,
-            )
+            .firstWhere((r) => r!.userId == vm.myUserId, orElse: () => null)
             ?.emoji;
 
         return MessageBubble(
@@ -222,11 +219,17 @@ class _MessageList extends StatelessWidget {
               ? vm.getSenderName(message.replyTo!.senderId)
               : null,
           myCurrentReaction: myReaction,
-          onReact: (emoji) =>
-              context.read<ChatViewModel>().reactMessage(message.id, emoji: emoji),
+          onReact: (emoji) => context.read<ChatViewModel>().reactMessage(
+            message.id,
+            emoji: emoji,
+          ),
           onReply: () => onReply(message),
           onEdit: isMe && !message.isDeleted
-              ? () => _showEditDialog(context, context.read<ChatViewModel>(), message)
+              ? () => _showEditDialog(
+                  context,
+                  context.read<ChatViewModel>(),
+                  message,
+                )
               : null,
           onDelete: isMe && !message.isDeleted
               ? () => context.read<ChatViewModel>().deleteMessage(message.id)

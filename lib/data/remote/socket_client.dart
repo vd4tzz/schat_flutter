@@ -11,12 +11,10 @@ class SocketClient {
   final TokenStorage _tokenStorage;
   io.Socket? _socket;
 
-  // ─── Notification ─────────────────────────────────────────────────────────
   final _notificationController = StreamController<AppNotification>.broadcast();
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
 
-  // ─── Message streams (Server → Client) ────────────────────────────────────
   final _messageSentController =
       StreamController<({Message message, String tempId})>.broadcast();
   Stream<({Message message, String tempId})> get messageSentStream =>
@@ -46,6 +44,13 @@ class SocketClient {
     ({String conversationId, String messageId, String userId, String? emoji})
   >
   get reactionUpdatedStream => _reactionUpdatedController.stream;
+
+  final _readReceiptController =
+      StreamController<
+        ({String conversationId, String userId, int seq})
+      >.broadcast();
+  Stream<({String conversationId, String userId, int seq})>
+  get readReceiptStream => _readReceiptController.stream;
 
   SocketClient(this._tokenStorage) {
     connect();
@@ -129,10 +134,22 @@ class SocketClient {
       } catch (_) {}
     });
 
+    _socket!.on('read_receipt', (data) {
+      try {
+        final d = data as Map<String, dynamic>;
+
+        _readReceiptController.add((
+          conversationId: d['conversationId'] as String,
+          userId: d['userId'] as String,
+          seq: d['seq'] as int,
+        ));
+      } catch (_) {}
+    });
+
     _socket!.connect();
   }
 
-  // ─── Emit methods (Client → Server) ───────────────────────────────────────
+  // ----- Emit methods (Client → Server) ---------------------------------------
 
   void sendMessage({
     required String conversationId,
@@ -150,8 +167,8 @@ class SocketClient {
     });
   }
 
-  void markRead(String conversationId) {
-    _socket?.emit('mark_read', {'conversationId': conversationId});
+  void markRead(String conversationId, int seq) {
+    _socket?.emit('mark_read', {'conversationId': conversationId, 'seq': seq});
   }
 
   void editMessage({
@@ -201,6 +218,7 @@ class SocketClient {
     _messageEditedController.close();
     _messageDeletedController.close();
     _reactionUpdatedController.close();
+    _readReceiptController.close();
   }
 
   AppNotification? _parseNotification(Map<String, dynamic> data) {

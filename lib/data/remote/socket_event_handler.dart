@@ -36,6 +36,11 @@ class SocketEventHandler {
         })
       >.broadcast();
 
+  final _readReceiptController =
+      StreamController<
+        ({String conversationId, String userId, int seq})
+      >.broadcast();
+
   final _notificationController = StreamController<AppNotification>.broadcast();
 
   Stream<Message> get newMessageStream => _newMessageController.stream;
@@ -52,6 +57,9 @@ class SocketEventHandler {
     ({String conversationId, String messageId, String userId, String? emoji})
   >
   get reactionUpdatedStream => _reactionUpdatedController.stream;
+
+  Stream<({String conversationId, String userId, int seq})>
+  get readReceiptStream => _readReceiptController.stream;
 
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
@@ -70,6 +78,9 @@ class SocketEventHandler {
     ({String conversationId, String messageId, String userId, String? emoji})
   >?
   _reactionUpdatedSub;
+
+  StreamSubscription<({String conversationId, String userId, int seq})>?
+  _readReceiptSub;
 
   StreamSubscription<AppNotification>? _notificationSub;
 
@@ -99,6 +110,8 @@ class SocketEventHandler {
       _onReactionUpdated,
     );
 
+    _readReceiptSub = _socketClient.readReceiptStream.listen(_onReadReceipt);
+
     _notificationSub = _socketClient.notificationStream.listen(_onNotification);
   }
 
@@ -107,14 +120,14 @@ class SocketEventHandler {
   void _onNewMessage(Message message) async {
     await _conversationRepository.updateLastMessage(message);
     _messageRepository.upsertMessage(message);
-    _conversationRepository.updateSenderLastReadSeq(message);
+    _conversationRepository.updateSenderLastReadSeq(message); // mark read
     _newMessageController.add(message);
   }
 
   void _onMessageSent(({Message message, String tempId}) event) {
     _messageRepository.upsertMessage(event.message);
     _conversationRepository.updateLastMessage(event.message);
-    _conversationRepository.updateSenderLastReadSeq(event.message);
+    _conversationRepository.updateSenderLastReadSeq(event.message); // mark read
     _messageSentController.add(event);
   }
 
@@ -132,12 +145,21 @@ class SocketEventHandler {
     ({String conversationId, String messageId, String userId, String? emoji})
     event,
   ) {
-    _messageRepository.applyReaction(
+    _messageRepository.updateReaction(
       event.messageId,
       event.userId,
       event.emoji,
     );
     _reactionUpdatedController.add(event);
+  }
+
+  void _onReadReceipt(({String conversationId, String userId, int seq}) event) {
+    _conversationRepository.markRead(
+      event.conversationId,
+      event.userId,
+      event.seq,
+    );
+    _readReceiptController.add(event);
   }
 
   void _onNotification(AppNotification notification) {
@@ -163,8 +185,8 @@ class SocketEventHandler {
     );
   }
 
-  void markRead(String conversationId) {
-    _socketClient.markRead(conversationId);
+  void markRead(String conversationId, int seq) {
+    _socketClient.markRead(conversationId, seq);
   }
 
   void editMessage({
@@ -207,7 +229,9 @@ class SocketEventHandler {
     _messageEditedSub?.cancel();
     _messageDeletedSub?.cancel();
     _reactionUpdatedSub?.cancel();
+    _readReceiptSub?.cancel();
     _notificationSub?.cancel();
+    _readReceiptController.close();
     _newMessageController.close();
     _messageSentController.close();
     _messageEditedController.close();

@@ -37,6 +37,7 @@ abstract final class ApiConstants {
 
   // Conversations
   static const conversations = '/conversations';
+  static String conversation(String id) => '/conversations/$id';
 
   // Messages
   static String conversationMessages(String conversationId) =>
