@@ -28,7 +28,7 @@ class MessageRepository {
               ..orderBy([(t) => OrderingTerm.desc(t.seq)])
               ..limit(limit))
             .get();
-    final messages = rows.map(Message.fromRow).toList();
+    final messages = rows.map(_rowToMessage).toList();
     return _populateReplyTo(messages);
   }
 
@@ -37,7 +37,7 @@ class MessageRepository {
     final row = await (_db.select(
       _db.cachedMessageTable,
     )..where((t) => t.id.equals(messageId))).getSingleOrNull();
-    if (row != null) return Message.fromRow(row);
+    if (row != null) return _rowToMessage(row);
 
     try {
       final response = await _apiClient.dio.get(
@@ -51,8 +51,10 @@ class MessageRepository {
     }
   }
 
-  /// Sync messages from server and return updated cached messages.
-  /// If cache exists, fetch newer ones; otherwise fetch latest.
+  /// Syncs new messages from server into cache, then returns the latest cached page.
+  /// - If cache exists: fetches messages with seq > latest cached seq (incremental sync).
+  /// - If cache is empty: fetches the most recent page from server.
+  /// Returns a [Result] wrapping the updated message list, or a failure on network error.
   Future<Result<List<Message>>> syncAndGetMessages(
     String conversationId, {
     int limit = _pageSize,
@@ -84,6 +86,12 @@ class MessageRepository {
     }
   }
 
+  /// Loads older messages before [beforeSeq] (pagination).
+  /// Returns `(messages, hasMore)`:
+  /// - Tries cache first; if cache has a full page, returns immediately.
+  /// - If cache is insufficient, fetches older messages from API and upserts them.
+  /// - On network error, returns whatever is in cache.
+  /// - `hasMore` is false when the server returns fewer messages than a full page.
   Future<(List<Message>, bool)> loadMoreMessages(
     String conversationId,
     int beforeSeq, {
@@ -99,34 +107,39 @@ class MessageRepository {
               ..orderBy([(t) => OrderingTerm.desc(t.seq)])
               ..limit(limit))
             .get();
-    final cachedMessage = rows.map(Message.fromRow).toList();
+    final cachedMessages = rows.map(_rowToMessage).toList();
 
-    if (cachedMessage.length == limit) {
-      return (await _populateReplyTo(cachedMessage), true);
+    if (cachedMessages.length == limit) {
+      return (await _populateReplyTo(cachedMessages), true);
     }
 
     // DB didn't have enough → fetch older from API
     // Use the smallest cached seq as cursor to avoid re-fetching existing messages
-    final apiBeforeSeq = cachedMessage.isNotEmpty
-        ? cachedMessage.last.seq
+    final apiBeforeSeq = cachedMessages.isNotEmpty
+        ? cachedMessages.last.seq
         : beforeSeq;
 
-    List<Message> fetched;
+    List<Message> fetchedMessages;
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.conversationMessages(conversationId),
         queryParameters: {'before': apiBeforeSeq, 'limit': _pageSize},
       );
-      fetched = (response.data as List)
+
+      fetchedMessages = (response.data as List)
           .map((e) => Message.fromJson(e as Map<String, dynamic>))
           .toList();
-      await upsertMessages(fetched);
+
+      await upsertMessages(fetchedMessages);
     } on DioException {
       // Network error → return whatever DB has
-      return (await _populateReplyTo(cachedMessage), cachedMessage.isNotEmpty);
+      return (
+        await _populateReplyTo(cachedMessages),
+        cachedMessages.isNotEmpty,
+      );
     }
 
-    if (cachedMessage.isEmpty && fetched.isEmpty) {
+    if (cachedMessages.isEmpty && fetchedMessages.isEmpty) {
       return (<Message>[], false);
     }
 
@@ -142,8 +155,11 @@ class MessageRepository {
               ..limit(limit))
             .get();
 
-    final combined = updated.map(Message.fromRow).toList();
-    return (await _populateReplyTo(combined), fetched.length == _pageSize);
+    final combined = updated.map(_rowToMessage).toList();
+    return (
+      await _populateReplyTo(combined),
+      fetchedMessages.length == _pageSize,
+    );
   }
 
   Future<int?> _getLatestSeq(String conversationId) async {
@@ -159,7 +175,7 @@ class MessageRepository {
   Future<void> upsertMessage(Message message) async {
     await _db
         .into(_db.cachedMessageTable)
-        .insertOnConflictUpdate(message.toCompanion());
+        .insertOnConflictUpdate(_messageToRow(message));
   }
 
   Future<void> upsertMessages(List<Message> messages) async {
@@ -168,14 +184,14 @@ class MessageRepository {
       for (final m in messages) {
         b.insert(
           _db.cachedMessageTable,
-          m.toCompanion(),
+          _messageToRow(m),
           mode: InsertMode.insertOrReplace,
         );
       }
     });
   }
 
-  Future<void> markDeleted(String messageId) async {
+  Future<void> markMessageDeleted(String messageId) async {
     await (_db.update(
       _db.cachedMessageTable,
     )..where((t) => t.id.equals(messageId))).write(
@@ -186,7 +202,7 @@ class MessageRepository {
     );
   }
 
-  Future<void> updateEdited(String messageId, String newContent) async {
+  Future<void> updateMessageContent(String messageId, String newContent) async {
     await (_db.update(
       _db.cachedMessageTable,
     )..where((t) => t.id.equals(messageId))).write(
@@ -198,7 +214,7 @@ class MessageRepository {
   }
 
   /// Update reactions.
-  Future<void> updateReaction(
+  Future<void> updateMessageReaction(
     String messageId,
     String userId,
     String? emoji,
@@ -243,7 +259,7 @@ class MessageRepository {
     final rows = await (_db.select(
       _db.cachedMessageTable,
     )..where((t) => t.id.isIn(replyToIds))).get();
-    final replyMap = {for (final row in rows) row.id: Message.fromRow(row)};
+    final replyMap = {for (final row in rows) row.id: _rowToMessage(row)};
 
     return messages.map((m) {
       if (m.replyToId != null && replyMap.containsKey(m.replyToId)) {
@@ -251,5 +267,41 @@ class MessageRepository {
       }
       return m;
     }).toList();
+  }
+
+  Message _rowToMessage(CachedMessageTableData row) {
+    final reactionsRaw = jsonDecode(row.reactionsJson) as List<dynamic>;
+
+    return Message(
+      id: row.id,
+      conversationId: row.conversationId,
+      seq: row.seq,
+      content: row.content,
+      type: MessageType.fromString(row.type),
+      senderId: row.senderId,
+      isEdited: row.isEdited,
+      isDeleted: row.isDeleted,
+      reactions: reactionsRaw
+          .map((e) => MessageReaction.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      replyToId: row.replyToId,
+      createdAt: DateTime.parse(row.createdAt).toUtc(),
+    );
+  }
+
+  CachedMessageTableCompanion _messageToRow(Message message) {
+    return CachedMessageTableCompanion.insert(
+      id: message.id,
+      conversationId: message.conversationId,
+      seq: message.seq,
+      content: Value(message.content),
+      type: message.type.toApiString(),
+      senderId: message.senderId,
+      reactionsJson: Value(
+        jsonEncode(message.reactions.map((r) => r.toJson()).toList()),
+      ),
+      replyToId: Value(message.replyToId),
+      createdAt: message.createdAt.toIso8601String(),
+    );
   }
 }

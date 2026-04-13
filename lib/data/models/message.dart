@@ -1,8 +1,3 @@
-import 'dart:convert';
-
-import 'package:drift/drift.dart' as drift show Value;
-import 'package:schat_flutter/data/local/app_database.dart';
-
 enum MessageType {
   text,
   image,
@@ -140,39 +135,4 @@ class Message {
     );
   }
 
-  factory Message.fromRow(CachedMessageTableData row) {
-    final reactionsRaw = jsonDecode(row.reactionsJson) as List<dynamic>;
-
-    return Message(
-      id: row.id,
-      conversationId: row.conversationId,
-      seq: row.seq,
-      content: row.content,
-      type: MessageType.fromString(row.type),
-      senderId: row.senderId,
-      isEdited: row.isEdited,
-      isDeleted: row.isDeleted,
-      reactions: reactionsRaw
-          .map((e) => MessageReaction.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      replyToId: row.replyToId,
-      createdAt: DateTime.parse(row.createdAt).toUtc(),
-    );
-  }
-
-  CachedMessageTableCompanion toCompanion() {
-    return CachedMessageTableCompanion.insert(
-      id: id,
-      conversationId: conversationId,
-      seq: seq,
-      content: drift.Value(content),
-      type: type.toApiString(),
-      senderId: senderId,
-      reactionsJson: drift.Value(
-        jsonEncode(reactions.map((r) => r.toJson()).toList()),
-      ),
-      replyToId: drift.Value(replyToId),
-      createdAt: createdAt.toIso8601String(),
-    );
-  }
 }
