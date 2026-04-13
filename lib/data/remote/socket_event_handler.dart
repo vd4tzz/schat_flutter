@@ -132,12 +132,12 @@ class SocketEventHandler {
   }
 
   void _onMessageEdited(Message message) {
-    _messageRepository.updateEdited(message.id, message.content ?? '');
+    _messageRepository.updateMessageContent(message.id, message.content ?? '');
     _messageEditedController.add(message);
   }
 
   void _onMessageDeleted(({String conversationId, String messageId}) event) {
-    _messageRepository.markDeleted(event.messageId);
+    _messageRepository.markMessageDeleted(event.messageId);
     _messageDeletedController.add(event);
   }
 
@@ -145,7 +145,7 @@ class SocketEventHandler {
     ({String conversationId, String messageId, String userId, String? emoji})
     event,
   ) {
-    _messageRepository.updateReaction(
+    _messageRepository.updateMessageReaction(
       event.messageId,
       event.userId,
       event.emoji,
