@@ -3,8 +3,6 @@ import 'package:dio/dio.dart';
 import '../../core/result/result.dart';
 import '../../core/utils/api_error.dart';
 import '../local/token_storage.dart';
-import '../models/auth_request.dart';
-import '../models/auth_response.dart';
 import '../remote/api_client.dart';
 
 class AuthRepository {
@@ -22,23 +20,20 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final request = RegisterRequest(
-        fullName: fullName,
-        username: username,
-        email: email,
-        password: password,
-      );
-
       final response = await _apiClient.dio.post(
         '/auth/register',
-        data: request.toJson(),
+        data: {
+          'fullName': fullName,
+          'username': username,
+          'email': email,
+          'password': password,
+        },
       );
 
-      final registerResponse = RegisterResponse.fromJson(
-        response.data as Map<String, dynamic>,
-      );
+      final otpExpiresIn =
+          (response.data as Map<String, dynamic>)['otpExpiresIn'] as int;
 
-      return Result.success(registerResponse.otpExpiresIn);
+      return Result.success(otpExpiresIn);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
       return Result.failure(message, code);
@@ -52,9 +47,10 @@ class AuthRepository {
     required String otp,
   }) async {
     try {
-      final request = VerifyOtpRequest(email: email, otp: otp);
-
-      await _apiClient.dio.post('/auth/verify-otp', data: request.toJson());
+      await _apiClient.dio.post(
+        '/auth/verify-otp',
+        data: {'email': email, 'otp': otp},
+      );
 
       return Result.success(null);
     } on DioException catch (e) {
@@ -67,9 +63,10 @@ class AuthRepository {
 
   Future<Result<void>> resendOtp({required String email}) async {
     try {
-      final request = ResendOtpRequest(email: email);
-
-      await _apiClient.dio.post('/auth/resend-otp', data: request.toJson());
+      await _apiClient.dio.post(
+        '/auth/resend-otp',
+        data: {'email': email},
+      );
 
       return Result.success(null);
     } on DioException catch (e) {
@@ -85,20 +82,16 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final request = LoginRequest(identifier: identifier, password: password);
-
       final response = await _apiClient.dio.post(
         '/auth/login',
-        data: request.toJson(),
+        data: {'identifier': identifier, 'password': password},
       );
 
-      final loginResponse = LoginResponse.fromJson(
-        response.data as Map<String, dynamic>,
-      );
+      final data = response.data as Map<String, dynamic>;
 
       await _tokenStorage.saveTokens(
-        accessToken: loginResponse.accessToken,
-        refreshToken: loginResponse.refreshToken,
+        accessToken: data['accessToken'] as String,
+        refreshToken: data['refreshToken'] as String,
       );
 
       return Result.success(null);
@@ -114,8 +107,10 @@ class AuthRepository {
     try {
       final refreshToken = await _tokenStorage.getRefreshToken();
       if (refreshToken != null) {
-        final request = RefreshTokenRequest(refreshToken: refreshToken);
-        await _apiClient.dio.post('/auth/logout', data: request.toJson());
+        await _apiClient.dio.post(
+          '/auth/logout',
+          data: {'refreshToken': refreshToken},
+        );
       }
 
       await _tokenStorage.clearTokens();
