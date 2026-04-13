@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../data/models/friendship_info.dart';
 import '../../../../data/models/search_user_result.dart';
 import '../inbox_view_model.dart';
 
@@ -32,12 +31,12 @@ class _UserProfileSheet extends StatelessWidget {
 
     // Get latest friendship from ViewModel
     final vm = context.watch<InboxViewModel>();
-    final currentItem =
-        vm.results.where((r) => r.user.id == user.id).firstOrNull;
+    final currentItem = vm.results
+        .where((r) => r.user.id == user.id)
+        .firstOrNull;
     final friendship = currentItem?.friendship ?? item.friendship;
 
-    final isBlockedByThem =
-        friendship.status == FriendshipStatus.blockedByThem;
+    final isBlockedByThem = friendship.status == FriendshipStatus.blockedByThem;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -59,11 +58,11 @@ class _UserProfileSheet extends StatelessWidget {
           CircleAvatar(
             radius: 52,
             backgroundColor: colors.surfaceContainerHighest,
-            backgroundImage:
-                user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+            backgroundImage: user.avatarUrl != null
+                ? NetworkImage(user.avatarUrl!)
+                : null,
             child: user.avatarUrl == null
-                ? Icon(Icons.person,
-                    size: 52, color: colors.onSurfaceVariant)
+                ? Icon(Icons.person, size: 52, color: colors.onSurfaceVariant)
                 : null,
           ),
           const SizedBox(height: 20),
@@ -144,9 +143,9 @@ class _UserProfileSheet extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await context.read<InboxViewModel>().unfriend(
-                    item.user.id,
-                    friendship.friendshipId!,
-                  );
+                item.user.id,
+                friendship.friendshipId!,
+              );
             },
             child: Row(
               children: [
@@ -168,36 +167,34 @@ class _UserProfileSheet extends StatelessWidget {
   ) {
     return switch (friendship.status) {
       FriendshipStatus.accepted => OutlinedButton.icon(
-          onPressed: () => _showFriendOptions(context, friendship),
-          icon: const Icon(Icons.check, size: 18),
-          label: const Text('Friends'),
-        ),
+        onPressed: () => _showFriendOptions(context, friendship),
+        icon: const Icon(Icons.check, size: 18),
+        label: const Text('Friends'),
+      ),
       FriendshipStatus.pendingSent => OutlinedButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.schedule, size: 18),
-          label: const Text('Sent'),
-        ),
+        onPressed: null,
+        icon: const Icon(Icons.schedule, size: 18),
+        label: const Text('Sent'),
+      ),
       FriendshipStatus.pendingReceived => ElevatedButton.icon(
-          onPressed: () {
-            // TODO: Accept friend request
-          },
-          icon: const Icon(Icons.person_add, size: 18),
-          label: const Text('Accept'),
-        ),
+        onPressed: () {
+          // TODO: Accept friend request
+        },
+        icon: const Icon(Icons.person_add, size: 18),
+        label: const Text('Accept'),
+      ),
       FriendshipStatus.blockedByYou => OutlinedButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.block, size: 18),
-          label: const Text('Blocked'),
-        ),
+        onPressed: null,
+        icon: const Icon(Icons.block, size: 18),
+        label: const Text('Blocked'),
+      ),
       _ => OutlinedButton.icon(
-          onPressed: () async {
-            await context
-                .read<InboxViewModel>()
-                .sendFriendRequest(item.user.id);
-          },
-          icon: const Icon(Icons.person_add_outlined, size: 18),
-          label: const Text('Add Friend'),
-        ),
+        onPressed: () async {
+          await context.read<InboxViewModel>().sendFriendRequest(item.user.id);
+        },
+        icon: const Icon(Icons.person_add_outlined, size: 18),
+        label: const Text('Add Friend'),
+      ),
     };
   }
 }

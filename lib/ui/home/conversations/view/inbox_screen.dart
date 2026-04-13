@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../data/local/token_storage.dart';
 import '../../../../data/models/conversation.dart';
-import '../../../../data/models/friendship_info.dart';
 import '../../../../data/models/search_user_result.dart';
 import '../../../theme/app_colors.dart';
 import '../inbox_view_model.dart';
@@ -41,9 +40,9 @@ class _InboxScreenState extends State<InboxScreen> {
     final error = context.read<InboxViewModel>().error;
     if (error != null && error != _lastError) {
       _lastError = error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -199,7 +198,8 @@ class _InboxScreenState extends State<InboxScreen> {
         final avatarUrl = item.avatarUrl != null
             ? Uri.encodeComponent(item.avatarUrl!)
             : null;
-        final uri = '/chat/${item.id}?name=$name'
+        final uri =
+            '/chat/${item.id}?name=$name'
             '${avatarUrl != null ? '&avatarUrl=$avatarUrl' : ''}';
         context.push(uri);
       },

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/models/conversation.dart';
-import '../../../data/models/friendship_info.dart';
 import '../../../data/models/search_user_result.dart';
 import '../../../data/repositories/conversation_repository.dart';
 import '../../../data/repositories/friendship_repository.dart';

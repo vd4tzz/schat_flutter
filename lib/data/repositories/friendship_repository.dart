@@ -4,7 +4,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/result/result.dart';
 import '../../core/utils/api_error.dart';
 import '../models/friend_request.dart';
-import '../models/friendship_info.dart';
+import '../models/search_user_result.dart';
 import '../remote/api_client.dart';
 
 class FriendshipRepository {
@@ -19,10 +19,12 @@ class FriendshipRepository {
         data: {'addresseeId': addresseeId},
       );
       final data = response.data as Map<String, dynamic>;
-      return Result.success(FriendshipInfo(
-        status: FriendshipStatus.pendingSent,
-        friendshipId: data['id'] as String,
-      ));
+      return Result.success(
+        FriendshipInfo(
+          status: FriendshipStatus.pendingSent,
+          friendshipId: data['id'] as String,
+        ),
+      );
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
       return Result.failure(message, code);
@@ -76,9 +78,7 @@ class FriendshipRepository {
 
   Future<Result<void>> unfriend(String friendshipId) async {
     try {
-      await _apiClient.dio.delete(
-        '${ApiConstants.friendships}/$friendshipId',
-      );
+      await _apiClient.dio.delete('${ApiConstants.friendships}/$friendshipId');
       return Result.success(null);
     } on DioException catch (e) {
       final (message, code) = parseApiError(e);
