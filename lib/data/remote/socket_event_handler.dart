@@ -190,8 +190,16 @@ class SocketEventHandler {
     _socketClient.markRead(conversationId, seq);
   }
 
-  void editMessage({required String messageId, required String content}) {
-    _socketClient.editMessage(messageId: messageId, content: content);
+  void editMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+  }) {
+    _socketClient.editMessage(
+      conversationId: conversationId,
+      messageId: messageId,
+      content: content,
+    );
   }
 
   void deleteMessage({
