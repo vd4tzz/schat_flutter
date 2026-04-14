@@ -133,6 +133,7 @@ class SocketEventHandler {
 
   void _onMessageEdited(Message message) {
     _messageRepository.updateMessageContent(message.id, message.content ?? '');
+    _conversationRepository.updateLastMessage(message);
     _messageEditedController.add(message);
   }
 
@@ -189,16 +190,8 @@ class SocketEventHandler {
     _socketClient.markRead(conversationId, seq);
   }
 
-  void editMessage({
-    required String conversationId,
-    required String messageId,
-    required String content,
-  }) {
-    _socketClient.editMessage(
-      conversationId: conversationId,
-      messageId: messageId,
-      content: content,
-    );
+  void editMessage({required String messageId, required String content}) {
+    _socketClient.editMessage(messageId: messageId, content: content);
   }
 
   void deleteMessage({

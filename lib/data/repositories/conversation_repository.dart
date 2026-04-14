@@ -241,6 +241,7 @@ class ConversationRepository {
 
   /// "When a sender sends a message, update that sender's lastReadSeq to
   /// the seq of that message."
+  /// Todo remove in the future. Use [markRead] instead
   Future<void> updateSenderLastReadSeq(Message message) async {
     await (_db.update(_db.cachedParticipantTable)..where(
           (t) =>

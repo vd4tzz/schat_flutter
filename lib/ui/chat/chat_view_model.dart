@@ -163,11 +163,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void editMessage(String messageId, String newContent) {
-    _eventHandler.editMessage(
-      conversationId: conversationId,
-      messageId: messageId,
-      content: newContent,
-    );
+    _eventHandler.editMessage(messageId: messageId, content: newContent);
   }
 
   void deleteMessage(String messageId) {

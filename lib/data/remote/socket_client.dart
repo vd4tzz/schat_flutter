@@ -172,15 +172,11 @@ class SocketClient {
   }
 
   void editMessage({
-    required String conversationId,
+    // required String conversationId,
     required String messageId,
     required String content,
   }) {
-    _socket?.emit('edit_message', {
-      'conversationId': conversationId,
-      'messageId': messageId,
-      'content': content,
-    });
+    _socket?.emit('edit_message', {'messageId': messageId, 'content': content});
   }
 
   void deleteMessage({
