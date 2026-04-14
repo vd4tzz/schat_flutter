@@ -133,6 +133,7 @@ class SocketEventHandler {
 
   void _onMessageEdited(Message message) {
     _messageRepository.updateMessageContent(message.id, message.content ?? '');
+    _conversationRepository.updateLastMessage(message);
     _messageEditedController.add(message);
   }
 
@@ -190,12 +191,12 @@ class SocketEventHandler {
   }
 
   void editMessage({
-    required String conversationId,
+    // required String conversationId,
     required String messageId,
     required String content,
   }) {
     _socketClient.editMessage(
-      conversationId: conversationId,
+      // conversationId: conversationId,
       messageId: messageId,
       content: content,
     );
