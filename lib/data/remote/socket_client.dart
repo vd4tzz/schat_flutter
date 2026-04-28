@@ -12,22 +12,27 @@ class SocketClient {
   io.Socket? _socket;
 
   final _notificationController = StreamController<AppNotification>.broadcast();
+
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
 
   final _messageSentController =
       StreamController<({Message message, String tempId})>.broadcast();
+
   Stream<({Message message, String tempId})> get messageSentStream =>
       _messageSentController.stream;
 
   final _newMessageController = StreamController<Message>.broadcast();
+
   Stream<Message> get newMessageStream => _newMessageController.stream;
 
   final _messageEditedController = StreamController<Message>.broadcast();
+
   Stream<Message> get messageEditedStream => _messageEditedController.stream;
 
   final _messageDeletedController =
       StreamController<({String conversationId, String messageId})>.broadcast();
+
   Stream<({String conversationId, String messageId})>
   get messageDeletedStream => _messageDeletedController.stream;
 
@@ -40,6 +45,7 @@ class SocketClient {
           String? emoji,
         })
       >.broadcast();
+
   Stream<
     ({String conversationId, String messageId, String userId, String? emoji})
   >
@@ -49,6 +55,7 @@ class SocketClient {
       StreamController<
         ({String conversationId, String userId, int seq})
       >.broadcast();
+
   Stream<({String conversationId, String userId, int seq})>
   get readReceiptStream => _readReceiptController.stream;
 
@@ -141,9 +148,11 @@ class SocketClient {
         _readReceiptController.add((
           conversationId: d['conversationId'] as String,
           userId: d['userId'] as String,
-          seq: d['seq'] as int,
+          seq: int.parse(d['seq'].toString()),
         ));
-      } catch (_) {}
+      } catch (e) {
+        print(e);
+      }
     });
 
     _socket!.connect();

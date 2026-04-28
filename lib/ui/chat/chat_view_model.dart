@@ -24,7 +24,7 @@ class ChatViewModel extends ChangeNotifier {
 
   String? getSenderAvatarUrl(String userId) => _participants[userId]?.avatarUrl;
 
-  // ─── Message lists ────────────────────────────────────────────────────────
+  // --- Message lists --------------------------------------------------------
   /// Newest-first (DESC) from DB, accumulated by loadMore
   List<Message> _cachedMessages = [];
 

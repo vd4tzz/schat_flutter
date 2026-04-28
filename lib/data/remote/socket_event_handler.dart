@@ -15,7 +15,7 @@ class SocketEventHandler {
   final ConversationRepository _conversationRepository;
   final NotificationRepository _notificationRepository;
 
-  // ─── Re-exposed streams ───────────────────────────────────────────────────
+  // --- Re-exposed streams ---------------------------------------------------
   final _newMessageController = StreamController<Message>.broadcast();
 
   final _messageSentController =
@@ -64,7 +64,7 @@ class SocketEventHandler {
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
 
-  // ─── Subscriptions tới SocketClient ──────────────────────────────────────
+  // --- Subscriptions tới SocketClient ---------------------------------------
   StreamSubscription<Message>? _newMessageSub;
 
   StreamSubscription<({Message message, String tempId})>? _messageSentSub;
@@ -115,7 +115,7 @@ class SocketEventHandler {
     _notificationSub = _socketClient.notificationStream.listen(_onNotification);
   }
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
+  // --- Handlers -------------------------------------------------------------
 
   void _onNewMessage(Message message) async {
     await _conversationRepository.updateLastMessage(message);
@@ -168,7 +168,7 @@ class SocketEventHandler {
     _notificationController.add(notification);
   }
 
-  // ─── Emit methods (delegate tới SocketClient) ─────────────────────────────
+  // --- Emit methods (delegate tới SocketClient) -----------------------------
 
   void sendMessage({
     required String conversationId,

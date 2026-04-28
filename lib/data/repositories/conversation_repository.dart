@@ -64,10 +64,10 @@ class ConversationRepository {
 
   /// Sync conversations from server to local DB.
   ///
-  /// 1. Get the latest updatedAt from cache.
-  /// 2. If cache is older than [_cacheExpiryDays], clear db and new fetch
-  /// from api.
-  /// 3. Otherwise, fetch only conversations updated after the latest cached one.
+  /// 1. Get the latestUpdatedAt from cache.
+  /// 2. If latestUpdatedAt is older than [_cacheExpiryDays], clear db
+  /// and perform a new fetch from api.
+  /// 3. Otherwise, fetch only conversations updated after the latestUpdatedAt.
   /// 4. Upsert fetched data into local DB.
   Future<Result<void>> syncConversations(String myUserId) async {
     try {
