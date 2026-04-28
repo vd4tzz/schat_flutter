@@ -5,7 +5,7 @@ import 'data/local/app_database.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
 import 'data/remote/socket_client.dart';
-import 'data/events/socket_event_handler.dart';
+import 'services/socket_event_handler.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/friendship_repository.dart';
 import 'data/repositories/conversation_repository.dart';

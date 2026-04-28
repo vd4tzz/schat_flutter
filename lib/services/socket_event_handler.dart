@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import '../models/app_notification.dart';
-import '../models/message.dart';
-import '../repositories/conversation_repository.dart';
-import '../repositories/message_repository.dart';
-import '../repositories/notification_repository.dart';
-import '../remote/socket_client.dart';
-import 'socket_events.dart';
+import '../data/models/app_notification.dart';
+import '../data/models/message.dart';
+import '../data/repositories/conversation_repository.dart';
+import '../data/repositories/message_repository.dart';
+import '../data/repositories/notification_repository.dart';
+import '../data/remote/socket_client.dart';
+import '../data/models/socket_events.dart';
 
 /// Nhận toàn bộ socket events từ [SocketClient], persist vào repository,
 /// rồi re-expose streams cho các ViewModel subscribe.
@@ -61,18 +61,20 @@ class SocketEventHandler {
   void _init() {
     _newMessageSub = _socketClient.newMessageStream.listen(_onNewMessage);
     _messageSentSub = _socketClient.messageSentStream.listen(_onMessageSent);
-    _messageEditedSub =
-        _socketClient.messageEditedStream.listen(_onMessageEdited);
-    _messageDeletedSub =
-        _socketClient.messageDeletedStream.listen(_onMessageDeleted);
-    _reactionUpdatedSub =
-        _socketClient.reactionUpdatedStream.listen(_onReactionUpdated);
+    _messageEditedSub = _socketClient.messageEditedStream.listen(
+      _onMessageEdited,
+    );
+    _messageDeletedSub = _socketClient.messageDeletedStream.listen(
+      _onMessageDeleted,
+    );
+    _reactionUpdatedSub = _socketClient.reactionUpdatedStream.listen(
+      _onReactionUpdated,
+    );
     _readReceiptSub = _socketClient.readReceiptStream.listen(_onReadReceipt);
-    _notificationSub =
-        _socketClient.notificationStream.listen(_onNotification);
+    _notificationSub = _socketClient.notificationStream.listen(_onNotification);
   }
 
-  // --- Handlers -------------------------------------------------------------
+  // --- Handlers methods -----------------------------------------------------
 
   void _onNewMessage(Message message) async {
     await _conversationRepository.updateLastMessage(message);
@@ -122,7 +124,7 @@ class SocketEventHandler {
     _notificationController.add(notification);
   }
 
-  // --- Emit methods (delegate tới SocketClient) -----------------------------
+  // --- Emit methods ---------------------------------------------------------
 
   void sendMessage({
     required String conversationId,

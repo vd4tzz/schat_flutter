@@ -6,7 +6,7 @@ import '../../core/constants/api_constants.dart';
 import '../local/token_storage.dart';
 import '../models/app_notification.dart';
 import '../models/message.dart';
-import '../events/socket_events.dart';
+import '../models/socket_events.dart';
 
 class SocketClient {
   final TokenStorage _tokenStorage;

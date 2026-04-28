@@ -7,7 +7,7 @@ import '../../data/models/message.dart';
 import '../../data/models/participant.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/message_repository.dart';
-import '../../data/events/socket_event_handler.dart';
+import '../../services/socket_event_handler.dart';
 
 class ChatViewModel extends ChangeNotifier {
   final MessageRepository _messageRepository;
