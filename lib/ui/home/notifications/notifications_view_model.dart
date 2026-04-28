@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../data/models/app_notification.dart';
 import '../../../data/models/friend_request.dart';
-import '../../../data/remote/socket_event_handler.dart';
+import '../../../data/events/socket_event_handler.dart';
 import '../../../data/repositories/friendship_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
 

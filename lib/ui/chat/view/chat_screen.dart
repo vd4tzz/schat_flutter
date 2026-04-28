@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/models/message.dart';
-import '../../../data/remote/socket_event_handler.dart';
+import '../../../data/events/socket_event_handler.dart';
 import '../../../data/repositories/conversation_repository.dart';
 import '../../../data/repositories/message_repository.dart';
 import '../chat_view_model.dart';

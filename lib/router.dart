@@ -17,7 +17,7 @@ import 'ui/auth/view/welcome_screen.dart';
 import 'ui/auth/view/login_screen.dart';
 import 'ui/auth/view/register_screen.dart';
 import 'ui/auth/view/otp_screen.dart';
-import 'data/remote/socket_event_handler.dart';
+import 'data/events/socket_event_handler.dart';
 import 'ui/home/home_screen.dart';
 
 final appRouter = GoRouter(

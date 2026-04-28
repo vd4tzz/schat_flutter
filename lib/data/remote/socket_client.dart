@@ -6,58 +6,39 @@ import '../../core/constants/api_constants.dart';
 import '../local/token_storage.dart';
 import '../models/app_notification.dart';
 import '../models/message.dart';
+import '../events/socket_events.dart';
 
 class SocketClient {
   final TokenStorage _tokenStorage;
   io.Socket? _socket;
 
   final _notificationController = StreamController<AppNotification>.broadcast();
-
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
 
-  final _messageSentController =
-      StreamController<({Message message, String tempId})>.broadcast();
-
-  Stream<({Message message, String tempId})> get messageSentStream =>
+  final _messageSentController = StreamController<MessageSentEvent>.broadcast();
+  Stream<MessageSentEvent> get messageSentStream =>
       _messageSentController.stream;
 
   final _newMessageController = StreamController<Message>.broadcast();
-
   Stream<Message> get newMessageStream => _newMessageController.stream;
 
   final _messageEditedController = StreamController<Message>.broadcast();
-
   Stream<Message> get messageEditedStream => _messageEditedController.stream;
 
   final _messageDeletedController =
-      StreamController<({String conversationId, String messageId})>.broadcast();
-
-  Stream<({String conversationId, String messageId})>
-  get messageDeletedStream => _messageDeletedController.stream;
+      StreamController<MessageDeletedEvent>.broadcast();
+  Stream<MessageDeletedEvent> get messageDeletedStream =>
+      _messageDeletedController.stream;
 
   final _reactionUpdatedController =
-      StreamController<
-        ({
-          String conversationId,
-          String messageId,
-          String userId,
-          String? emoji,
-        })
-      >.broadcast();
+      StreamController<ReactionUpdatedEvent>.broadcast();
+  Stream<ReactionUpdatedEvent> get reactionUpdatedStream =>
+      _reactionUpdatedController.stream;
 
-  Stream<
-    ({String conversationId, String messageId, String userId, String? emoji})
-  >
-  get reactionUpdatedStream => _reactionUpdatedController.stream;
-
-  final _readReceiptController =
-      StreamController<
-        ({String conversationId, String userId, int seq})
-      >.broadcast();
-
-  Stream<({String conversationId, String userId, int seq})>
-  get readReceiptStream => _readReceiptController.stream;
+  final _readReceiptController = StreamController<ReadReceiptEvent>.broadcast();
+  Stream<ReadReceiptEvent> get readReceiptStream =>
+      _readReceiptController.stream;
 
   SocketClient(this._tokenStorage) {
     connect();
@@ -89,7 +70,6 @@ class SocketClient {
     _socket!.on('message_sent', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _messageSentController.add((
           message: Message.fromJson(d['message'] as Map<String, dynamic>),
           tempId: d['tempId'] as String,
@@ -100,7 +80,6 @@ class SocketClient {
     _socket!.on('new_message', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _newMessageController.add(
           Message.fromJson(d['message'] as Map<String, dynamic>),
         );
@@ -110,7 +89,6 @@ class SocketClient {
     _socket!.on('message_edited', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _messageEditedController.add(
           Message.fromJson(d['message'] as Map<String, dynamic>),
         );
@@ -120,7 +98,6 @@ class SocketClient {
     _socket!.on('message_deleted', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _messageDeletedController.add((
           conversationId: d['conversationId'] as String,
           messageId: d['messageId'] as String,
@@ -131,7 +108,6 @@ class SocketClient {
     _socket!.on('reaction_updated', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _reactionUpdatedController.add((
           conversationId: d['conversationId'] as String,
           messageId: d['messageId'] as String,
@@ -144,7 +120,6 @@ class SocketClient {
     _socket!.on('read_receipt', (data) {
       try {
         final d = data as Map<String, dynamic>;
-
         _readReceiptController.add((
           conversationId: d['conversationId'] as String,
           userId: d['userId'] as String,

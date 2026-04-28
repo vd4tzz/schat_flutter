@@ -5,7 +5,8 @@ import '../models/message.dart';
 import '../repositories/conversation_repository.dart';
 import '../repositories/message_repository.dart';
 import '../repositories/notification_repository.dart';
-import 'socket_client.dart';
+import '../remote/socket_client.dart';
+import 'socket_events.dart';
 
 /// Nhận toàn bộ socket events từ [SocketClient], persist vào repository,
 /// rồi re-expose streams cho các ViewModel subscribe.
@@ -17,71 +18,35 @@ class SocketEventHandler {
 
   // --- Re-exposed streams ---------------------------------------------------
   final _newMessageController = StreamController<Message>.broadcast();
-
-  final _messageSentController =
-      StreamController<({Message message, String tempId})>.broadcast();
-
+  final _messageSentController = StreamController<MessageSentEvent>.broadcast();
   final _messageEditedController = StreamController<Message>.broadcast();
-
   final _messageDeletedController =
-      StreamController<({String conversationId, String messageId})>.broadcast();
-
+      StreamController<MessageDeletedEvent>.broadcast();
   final _reactionUpdatedController =
-      StreamController<
-        ({
-          String conversationId,
-          String messageId,
-          String userId,
-          String? emoji,
-        })
-      >.broadcast();
-
-  final _readReceiptController =
-      StreamController<
-        ({String conversationId, String userId, int seq})
-      >.broadcast();
-
+      StreamController<ReactionUpdatedEvent>.broadcast();
+  final _readReceiptController = StreamController<ReadReceiptEvent>.broadcast();
   final _notificationController = StreamController<AppNotification>.broadcast();
 
   Stream<Message> get newMessageStream => _newMessageController.stream;
-
-  Stream<({Message message, String tempId})> get messageSentStream =>
+  Stream<MessageSentEvent> get messageSentStream =>
       _messageSentController.stream;
-
   Stream<Message> get messageEditedStream => _messageEditedController.stream;
-
-  Stream<({String conversationId, String messageId})>
-  get messageDeletedStream => _messageDeletedController.stream;
-
-  Stream<
-    ({String conversationId, String messageId, String userId, String? emoji})
-  >
-  get reactionUpdatedStream => _reactionUpdatedController.stream;
-
-  Stream<({String conversationId, String userId, int seq})>
-  get readReceiptStream => _readReceiptController.stream;
-
+  Stream<MessageDeletedEvent> get messageDeletedStream =>
+      _messageDeletedController.stream;
+  Stream<ReactionUpdatedEvent> get reactionUpdatedStream =>
+      _reactionUpdatedController.stream;
+  Stream<ReadReceiptEvent> get readReceiptStream =>
+      _readReceiptController.stream;
   Stream<AppNotification> get notificationStream =>
       _notificationController.stream;
 
   // --- Subscriptions tới SocketClient ---------------------------------------
   StreamSubscription<Message>? _newMessageSub;
-
-  StreamSubscription<({Message message, String tempId})>? _messageSentSub;
-
+  StreamSubscription<MessageSentEvent>? _messageSentSub;
   StreamSubscription<Message>? _messageEditedSub;
-
-  StreamSubscription<({String conversationId, String messageId})>?
-  _messageDeletedSub;
-
-  StreamSubscription<
-    ({String conversationId, String messageId, String userId, String? emoji})
-  >?
-  _reactionUpdatedSub;
-
-  StreamSubscription<({String conversationId, String userId, int seq})>?
-  _readReceiptSub;
-
+  StreamSubscription<MessageDeletedEvent>? _messageDeletedSub;
+  StreamSubscription<ReactionUpdatedEvent>? _reactionUpdatedSub;
+  StreamSubscription<ReadReceiptEvent>? _readReceiptSub;
   StreamSubscription<AppNotification>? _notificationSub;
 
   SocketEventHandler(
@@ -95,24 +60,16 @@ class SocketEventHandler {
 
   void _init() {
     _newMessageSub = _socketClient.newMessageStream.listen(_onNewMessage);
-
     _messageSentSub = _socketClient.messageSentStream.listen(_onMessageSent);
-
-    _messageEditedSub = _socketClient.messageEditedStream.listen(
-      _onMessageEdited,
-    );
-
-    _messageDeletedSub = _socketClient.messageDeletedStream.listen(
-      _onMessageDeleted,
-    );
-
-    _reactionUpdatedSub = _socketClient.reactionUpdatedStream.listen(
-      _onReactionUpdated,
-    );
-
+    _messageEditedSub =
+        _socketClient.messageEditedStream.listen(_onMessageEdited);
+    _messageDeletedSub =
+        _socketClient.messageDeletedStream.listen(_onMessageDeleted);
+    _reactionUpdatedSub =
+        _socketClient.reactionUpdatedStream.listen(_onReactionUpdated);
     _readReceiptSub = _socketClient.readReceiptStream.listen(_onReadReceipt);
-
-    _notificationSub = _socketClient.notificationStream.listen(_onNotification);
+    _notificationSub =
+        _socketClient.notificationStream.listen(_onNotification);
   }
 
   // --- Handlers -------------------------------------------------------------
@@ -120,14 +77,14 @@ class SocketEventHandler {
   void _onNewMessage(Message message) async {
     await _conversationRepository.updateLastMessage(message);
     _messageRepository.upsertMessage(message);
-    _conversationRepository.updateSenderLastReadSeq(message); // mark read
+    _conversationRepository.updateSenderLastReadSeq(message);
     _newMessageController.add(message);
   }
 
-  void _onMessageSent(({Message message, String tempId}) event) {
+  void _onMessageSent(MessageSentEvent event) {
     _messageRepository.upsertMessage(event.message);
     _conversationRepository.updateLastMessage(event.message);
-    _conversationRepository.updateSenderLastReadSeq(event.message); // mark read
+    _conversationRepository.updateSenderLastReadSeq(event.message);
     _messageSentController.add(event);
   }
 
@@ -137,15 +94,12 @@ class SocketEventHandler {
     _messageEditedController.add(message);
   }
 
-  void _onMessageDeleted(({String conversationId, String messageId}) event) {
+  void _onMessageDeleted(MessageDeletedEvent event) {
     _messageRepository.markMessageDeleted(event.messageId);
     _messageDeletedController.add(event);
   }
 
-  void _onReactionUpdated(
-    ({String conversationId, String messageId, String userId, String? emoji})
-    event,
-  ) {
+  void _onReactionUpdated(ReactionUpdatedEvent event) {
     _messageRepository.updateMessageReaction(
       event.messageId,
       event.userId,
@@ -154,7 +108,7 @@ class SocketEventHandler {
     _reactionUpdatedController.add(event);
   }
 
-  void _onReadReceipt(({String conversationId, String userId, int seq}) event) {
+  void _onReadReceipt(ReadReceiptEvent event) {
     _conversationRepository.markRead(
       event.conversationId,
       event.userId,

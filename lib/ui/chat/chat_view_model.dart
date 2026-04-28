@@ -7,7 +7,7 @@ import '../../data/models/message.dart';
 import '../../data/models/participant.dart';
 import '../../data/repositories/conversation_repository.dart';
 import '../../data/repositories/message_repository.dart';
-import '../../data/remote/socket_event_handler.dart';
+import '../../data/events/socket_event_handler.dart';
 
 class ChatViewModel extends ChangeNotifier {
   final MessageRepository _messageRepository;
@@ -25,6 +25,7 @@ class ChatViewModel extends ChangeNotifier {
   String? getSenderAvatarUrl(String userId) => _participants[userId]?.avatarUrl;
 
   // --- Message lists --------------------------------------------------------
+
   /// Newest-first (DESC) from DB, accumulated by loadMore
   List<Message> _cachedMessages = [];
 
@@ -81,7 +82,7 @@ class ChatViewModel extends ChangeNotifier {
   }) : _messageRepository = messageRepository,
        _conversationRepository = conversationRepository,
        _eventHandler = dispatcher {
-    _subscribeToDispatcher();
+    _subscribeToEventHandler();
     _init();
   }
 
@@ -185,7 +186,7 @@ class ChatViewModel extends ChangeNotifier {
     );
   }
 
-  void _subscribeToDispatcher() {
+  void _subscribeToEventHandler() {
     _messageSentSub = _eventHandler.messageSentStream.listen(_onMessageSent);
     _newMessageSub = _eventHandler.newMessageStream.listen(_onNewMessage);
     _messageEditedSub = _eventHandler.messageEditedStream.listen(
