@@ -15,22 +15,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  late LoginViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    context.read<LoginViewModel>().addListener(_onViewModelChanged);
+    _viewModel = context.read<LoginViewModel>();
+    _viewModel.addListener(_onViewModelChanged);
   }
 
   void _onViewModelChanged() {
-    if (context.read<LoginViewModel>().isSuccess) {
-      context.go('/home'); // TODO: replace with actual home route
+    if (!mounted) return;
+    if (_viewModel.isSuccess) {
+      context.go('/home');
     }
   }
 
   @override
   void dispose() {
-    context.read<LoginViewModel>().removeListener(_onViewModelChanged);
+    _viewModel.removeListener(_onViewModelChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();

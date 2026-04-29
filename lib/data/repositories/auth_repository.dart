@@ -2,14 +2,16 @@ import 'package:dio/dio.dart';
 
 import '../../core/result/result.dart';
 import '../../core/utils/api_error.dart';
+import '../local/app_database.dart';
 import '../local/token_storage.dart';
 import '../remote/api_client.dart';
 
 class AuthRepository {
   final TokenStorage _tokenStorage;
   final ApiClient _apiClient;
+  final AppDatabase _db;
 
-  AuthRepository(this._tokenStorage, this._apiClient);
+  AuthRepository(this._tokenStorage, this._apiClient, this._db);
 
   Future<bool> isLoggedIn() => _tokenStorage.hasTokens();
 
@@ -112,13 +114,10 @@ class AuthRepository {
           data: {'refreshToken': refreshToken},
         );
       }
+    } catch (_) {}
 
-      await _tokenStorage.clearTokens();
-      return Result.success(null);
-    } catch (e) {
-      // Logout luôn thành công (client-side)
-      await _tokenStorage.clearTokens();
-      return Result.success(null);
-    }
+    await _tokenStorage.clearTokens();
+    await _db.clearAll();
+    return Result.success(null);
   }
 }

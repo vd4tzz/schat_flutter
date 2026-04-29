@@ -30,7 +30,10 @@ final appRouter = GoRouter(
       builder: (context, _) => MultiProvider(
         providers: [
           ChangeNotifierProvider(
-            create: (ctx) => ProfileViewModel(ctx.read<UserRepository>()),
+            create: (ctx) => ProfileViewModel(
+              ctx.read<UserRepository>(),
+              ctx.read<AuthRepository>(),
+            ),
           ),
           ChangeNotifierProvider(
             create: (ctx) => InboxViewModel(

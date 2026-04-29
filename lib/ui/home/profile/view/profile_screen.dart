@@ -3,6 +3,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/image_utils.dart';
+import '../../../../router.dart';
 import '../profile_view_model.dart';
 import 'user_profile_detail_screen.dart';
 
@@ -96,33 +97,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         offset: const Offset(0, -30),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Material(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(12),
-                            child: ListTile(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              leading: const Icon(Icons.person_outline),
-                              title: const Text('My Profile'),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                Navigator.push(
+                          child: Column(
+                            children: [
+                              Material(
+                                color: Theme.of(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        ChangeNotifierProvider.value(
-                                          value: context
-                                              .read<ProfileViewModel>(),
-                                          child:
-                                              const UserProfileDetailScreen(),
-                                        ),
+                                ).colorScheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(12),
+                                child: ListTile(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                );
-                              },
-                            ),
+                                  leading: const Icon(Icons.person_outline),
+                                  title: const Text('My Profile'),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ChangeNotifierProvider.value(
+                                              value: context
+                                                  .read<ProfileViewModel>(),
+                                              child:
+                                                  const UserProfileDetailScreen(),
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Material(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(12),
+                                child: ListTile(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  leading: Icon(
+                                    Icons.logout,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  title: Text(
+                                    'Log out',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.error,
+                                    ),
+                                  ),
+                                  onTap: () => _confirmLogout(context, viewModel),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -220,6 +248,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmLogout(
+    BuildContext context,
+    ProfileViewModel viewModel,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Log out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Log out',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final success = await viewModel.logout();
+    if (success) appRouter.go('/login');
   }
 
   void _showImagePickerSheet(

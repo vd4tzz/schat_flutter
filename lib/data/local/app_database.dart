@@ -99,4 +99,12 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   int get schemaVersion => 1;
+
+  Future<void> clearAll() => transaction(() async {
+        await delete(cachedMessageTable).go();
+        await delete(cachedParticipantTable).go();
+        await delete(cachedConversationTable).go();
+        await delete(cachedNotificationTable).go();
+        await delete(cachedUserTable).go();
+      });
 }

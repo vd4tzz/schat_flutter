@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../core/app_event_bus.dart';
 import '../../core/constants/api_constants.dart';
 import '../local/token_storage.dart';
 
@@ -7,8 +8,11 @@ class ApiClient {
   final Dio _dio;
   final TokenStorage _tokenStorage;
 
-  ApiClient(this._tokenStorage) : _dio = Dio(_baseOptions()) {
-    _dio.interceptors.add(_AuthInterceptor(_tokenStorage, _dio));
+  ApiClient(this._tokenStorage, AppEventBus eventBus)
+      : _dio = Dio(_baseOptions()) {
+    _dio.interceptors.add(
+      _AuthInterceptor(_tokenStorage, _dio, eventBus),
+    );
   }
 
   Dio get dio => _dio;
@@ -25,11 +29,12 @@ class _AuthInterceptor extends Interceptor {
   final TokenStorage _tokenStorage;
   final Dio _dio;
 
-  // Tránh gọi refresh đồng thời nhiều lần
+  final AppEventBus _eventBus;
+
   bool _isRefreshing = false;
   final _pendingRequests = <({RequestOptions options, ErrorInterceptorHandler handler})>[];
 
-  _AuthInterceptor(this._tokenStorage, this._dio);
+  _AuthInterceptor(this._tokenStorage, this._dio, this._eventBus);
 
   @override
   Future<void> onRequest(
@@ -80,6 +85,7 @@ class _AuthInterceptor extends Interceptor {
 
     _pendingRequests.clear();
     _isRefreshing = false;
+    if (!refreshed) _eventBus.emit(AppEvent.sessionExpired);
   }
 
   Future<void> _retryRequest(

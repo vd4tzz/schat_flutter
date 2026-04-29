@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_theme.dart';
+import 'core/app_event_bus.dart';
 import 'data/local/app_database.dart';
 import 'data/local/token_storage.dart';
 import 'data/remote/api_client.dart';
@@ -12,6 +13,7 @@ import 'data/repositories/conversation_repository.dart';
 import 'data/repositories/message_repository.dart';
 import 'data/repositories/notification_repository.dart';
 import 'data/repositories/user_repository.dart';
+import 'ui/app_event_listener.dart';
 import 'ui/splash/splash_view_model.dart';
 import 'router.dart';
 
@@ -29,10 +31,12 @@ class SChat extends StatelessWidget {
         // 1. Local
         Provider<TokenStorage>.value(value: TokenStorage.instance),
         Provider<AppDatabase>(create: (_) => AppDatabase()),
+        Provider<AppEventBus>(create: (_) => AppEventBus()),
 
         // 2. Remote
-        ProxyProvider<TokenStorage, ApiClient>(
-          update: (_, tokenStorage, _) => ApiClient(tokenStorage),
+        ProxyProvider2<TokenStorage, AppEventBus, ApiClient>(
+          update: (_, tokenStorage, eventBus, _) =>
+              ApiClient(tokenStorage, eventBus),
         ),
 
         ProxyProvider<TokenStorage, SocketClient>(
@@ -42,9 +46,9 @@ class SChat extends StatelessWidget {
         ),
 
         // 3. Repositories
-        ProxyProvider2<TokenStorage, ApiClient, AuthRepository>(
-          update: (_, tokenStorage, apiClient, _) =>
-              AuthRepository(tokenStorage, apiClient),
+        ProxyProvider3<TokenStorage, ApiClient, AppDatabase, AuthRepository>(
+          update: (_, tokenStorage, apiClient, db, _) =>
+              AuthRepository(tokenStorage, apiClient, db),
         ),
 
         ProxyProvider2<ApiClient, AppDatabase, UserRepository>(
@@ -92,11 +96,13 @@ class SChat extends StatelessWidget {
         ),
 
       ],
-      child: MaterialApp.router(
-        title: 'SChat',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        routerConfig: appRouter,
+      child: AppEventListener(
+        child: MaterialApp.router(
+          title: 'SChat',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          routerConfig: appRouter,
+        ),
       ),
     );
   }

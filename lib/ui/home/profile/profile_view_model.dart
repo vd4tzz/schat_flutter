@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/models/user.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final UserRepository _userRepository;
+  final AuthRepository _authRepository;
 
-  ProfileViewModel(this._userRepository);
+  ProfileViewModel(this._userRepository, this._authRepository);
 
   User? _user;
   User? get user => _user;
@@ -151,6 +153,11 @@ class ProfileViewModel extends ChangeNotifier {
       },
     );
     notifyListeners();
+  }
+
+  Future<bool> logout() async {
+    final result = await _authRepository.logout();
+    return result.when(success: (_) => true, failure: (_, _) => false);
   }
 
   void clearError() {
