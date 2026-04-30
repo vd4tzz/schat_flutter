@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'data/local/token_storage.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/conversation_repository.dart';
 import 'data/repositories/friendship_repository.dart';
@@ -40,6 +41,7 @@ final appRouter = GoRouter(
               ctx.read<UserRepository>(),
               ctx.read<FriendshipRepository>(),
               ctx.read<ConversationRepository>(),
+              ctx.read<TokenStorage>(),
             ),
           ),
           ChangeNotifierProvider(

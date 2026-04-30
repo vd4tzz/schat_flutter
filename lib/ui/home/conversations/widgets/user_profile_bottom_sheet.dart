@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../data/models/search_user_result.dart';
@@ -106,9 +107,17 @@ class _UserProfileSheet extends StatelessWidget {
                 // Message button
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
+                      final vm = context.read<InboxViewModel>();
+                      final router = GoRouter.of(context);
                       Navigator.pop(context);
-                      // TODO: Navigate to chat
+                      final conv = await vm.createDirectConversation(user.id);
+                      if (conv != null) {
+                        final name = Uri.encodeComponent(
+                          conv.name ?? user.fullName,
+                        );
+                        router.push('/chat/${conv.id}?name=$name');
+                      }
                     },
                     icon: const Icon(Icons.chat_bubble_outline, size: 18),
                     label: const Text('Message'),

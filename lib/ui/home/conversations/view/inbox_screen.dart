@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../data/local/token_storage.dart';
 import '../../../../data/models/conversation.dart';
 import '../../../../data/models/search_user_result.dart';
 import '../../../theme/app_colors.dart';
@@ -20,24 +19,24 @@ class _InboxScreenState extends State<InboxScreen> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isSearching = false;
+  late InboxViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = context.read<InboxViewModel>();
     _scrollController.addListener(_onScroll);
-    final userId = TokenStorage.instance.userId;
-    if (userId != null) {
-      context.read<InboxViewModel>().init(userId);
-    }
+    _viewModel.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<InboxViewModel>().addListener(_onViewModelChanged);
+      _viewModel.addListener(_onViewModelChanged);
     });
   }
 
   String? _lastError;
 
   void _onViewModelChanged() {
-    final error = context.read<InboxViewModel>().error;
+    if (!mounted) return;
+    final error = _viewModel.error;
     if (error != null && error != _lastError) {
       _lastError = error;
       ScaffoldMessenger.of(
@@ -49,13 +48,13 @@ class _InboxScreenState extends State<InboxScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      context.read<InboxViewModel>().loadMore();
+      _viewModel.loadMore();
     }
   }
 
   @override
   void dispose() {
-    context.read<InboxViewModel>().removeListener(_onViewModelChanged);
+    _viewModel.removeListener(_onViewModelChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();

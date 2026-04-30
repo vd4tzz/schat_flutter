@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/local/token_storage.dart';
 import '../../../data/models/conversation.dart';
 import '../../../data/models/search_user_result.dart';
 import '../../../data/repositories/conversation_repository.dart';
@@ -12,14 +13,16 @@ class InboxViewModel extends ChangeNotifier {
   final UserRepository _userRepository;
   final FriendshipRepository _friendshipRepository;
   final ConversationRepository _conversationRepository;
+  final TokenStorage _tokenStorage;
 
   InboxViewModel(
     this._userRepository,
     this._friendshipRepository,
     this._conversationRepository,
+    this._tokenStorage,
   );
 
-  // ─── Conversations ────────────────────────────────────────────────────────
+  // --- Conversations --------------------------------------------------------
 
   List<Conversation> _conversations = [];
   List<Conversation> get conversations => _conversations;
@@ -36,20 +39,21 @@ class InboxViewModel extends ChangeNotifier {
   String? _myUserId;
   StreamSubscription<List<Conversation>>? _conversationSub;
 
-  void init(String myUserId) async {
-    _myUserId = myUserId;
+  void init() async {
+    _myUserId = await _tokenStorage.getUserId();
     _conversations = await _conversationRepository.getCachedConversations(
-      myUserId,
+      _myUserId!,
     );
     _isInitialized = true;
     notifyListeners();
 
     _conversationSub = _conversationRepository
-        .watchConversation(myUserId)
+        .watchConversation(_myUserId!)
         .listen((conversations) {
           _conversations = conversations;
           notifyListeners();
         });
+
     _sync();
   }
 
@@ -93,7 +97,7 @@ class InboxViewModel extends ChangeNotifier {
     );
   }
 
-  // ─── Search ───────────────────────────────────────────────────────────────
+  //--- Search ----------------------------------------------------------------
 
   List<SearchUserResult> _results = [];
   List<SearchUserResult> get results => _results;

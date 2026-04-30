@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../data/local/token_storage.dart';
 import '../login_view_model.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -24,9 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
     _viewModel.addListener(_onViewModelChanged);
   }
 
-  void _onViewModelChanged() {
+  void _onViewModelChanged() async {
     if (!mounted) return;
     if (_viewModel.isSuccess) {
+      await TokenStorage.instance.getUserId();
+      if (!mounted) return;
       context.go('/home');
     }
   }
