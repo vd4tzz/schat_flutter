@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../data/local/token_storage.dart';
+import '../../../data/remote/socket_client.dart';
 import '../login_view_model.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,6 +30,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     if (_viewModel.isSuccess) {
       await TokenStorage.instance.getUserId();
+
+      // TODO: sau này xấp xếp khởi tạo lại sao cho socket client khi khởi tạo
+      // sử dụng TokenStorage đã có access token
+      // đoạn code phía dưới sẽ xóa.
+      if (!mounted) return;
+      await context.read<SocketClient>().connect();
+      //---------------------------------------------------
+
       if (!mounted) return;
       context.go('/home');
     }
